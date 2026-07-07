@@ -88,15 +88,18 @@
       background: rgba(0,0,0,0.65);
       display: none; align-items: center; justify-content: center;
       flex-direction: column; gap: 16px;
+      padding: 20px; box-sizing: border-box;
     }
     #frame-overlay.open { display: flex; }
 
+    #frame-scaler { position: relative; flex-shrink: 0; }
     #frame {
       position: relative;
       width: 468px; height: 481px;
       background: #000000;
       outline: 1px solid #fff;
       box-shadow: 0 8px 60px rgba(0,0,0,0.9);
+      transform-origin: top left;
     }
     #frame .media {
       position: absolute;
@@ -124,8 +127,30 @@
       white-space: nowrap;
     }
 
-    #frame-actions { display: flex; gap: 10px; }
+    #frame-actions { display: flex; gap: 10px; flex-shrink: 0; }
     #frame-actions button { padding: 9px 26px; font-size: 10px; }
+
+    /* ── Mobile / narrow viewport ──────────────────────────── */
+    @media (max-width: 600px) {
+      .t1 { font-size: 18px; letter-spacing: 4px; text-align: center; }
+      .t2 { font-size: 9px; letter-spacing: 2px; }
+      button { padding: 10px 26px; font-size: 10px; }
+
+      #hud-wrap { bottom: 14px; left: 14px; }
+      #hud { font-size: 9px; }
+
+      #cam-btn { bottom: 14px; right: 14px; padding: 10px; }
+      #cam-btn svg { width: 22px; height: 19px; }
+      #cam-menu { bottom: 56px; right: 14px; }
+      #rec-dot { bottom: 24px; right: 54px; }
+
+      #frame-actions { gap: 8px; }
+      #frame-actions button { padding: 10px 20px; font-size: 9px; }
+    }
+
+    @media (max-width: 600px) and (orientation: landscape) {
+      #frame-overlay { flex-direction: row; gap: 20px; }
+    }
   </style>
 </head>
 <body>
@@ -163,14 +188,16 @@
 <div id="rec-dot"></div>
 
 <div id="frame-overlay">
-  <div id="frame">
-    <input id="frame-caption" type="text" placeholder="Write caption" maxlength="40" />
-    <div class="top-right">
-      <span>yourvoice.art</span>
-      <span id="frame-date"></span>
+  <div id="frame-scaler">
+    <div id="frame">
+      <input id="frame-caption" type="text" placeholder="Write caption" maxlength="40" />
+      <div class="top-right">
+        <span>yourvoice.art</span>
+        <span id="frame-date"></span>
+      </div>
+      <img class="media" id="frame-img" style="display:none" />
+      <video class="media" id="frame-video" style="display:none" autoplay loop muted playsinline></video>
     </div>
-    <img class="media" id="frame-img" style="display:none" />
-    <video class="media" id="frame-video" style="display:none" autoplay loop muted playsinline></video>
   </div>
   <div id="frame-actions">
     <button id="frame-save">SAVE</button>
@@ -672,6 +699,23 @@ function todayStr() {
   return `${p(d.getMonth() + 1)}.${p(d.getDate())}.${d.getFullYear()}`;
 }
 
+const frameEl      = document.getElementById('frame');
+const frameScaler  = document.getElementById('frame-scaler');
+const FRAME_W = 468, FRAME_H = 481;
+
+function scaleFrame() {
+  const actionsH = 44; // approx height reserved for save/close row + gaps
+  const availW = window.innerWidth  - 40;
+  const availH = window.innerHeight - 40 - actionsH;
+  const scale  = Math.min(1, availW / FRAME_W, availH / FRAME_H);
+  frameEl.style.transform  = `scale(${scale})`;
+  frameScaler.style.width  = `${FRAME_W * scale}px`;
+  frameScaler.style.height = `${FRAME_H * scale}px`;
+}
+window.addEventListener('resize', () => {
+  if (frameOv.classList.contains('open')) scaleFrame();
+});
+
 function openFrame(blob, kind) {
   capturedBlob = blob;
   capturedKind = kind;
@@ -688,6 +732,7 @@ function openFrame(blob, kind) {
   frameCap.value = '';
   frameDate.textContent = todayStr();
   frameOv.classList.add('open');
+  scaleFrame();
 }
 
 camBtn.addEventListener('click', () => camMenu.classList.toggle('open'));
