@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Karaoke — Particle World</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #08000f; overflow: hidden; font-family: monospace; }
+
+    #overlay {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; gap: 14px;
+      align-items: center; justify-content: center;
+      background: #08000f; z-index: 20;
+      transition: opacity 0.8s ease;
+    }
+    #overlay.fade-out { opacity: 0; pointer-events: none; }
+
+    .title {
+      color: #fff; font-size: 30px;
+      letter-spacing: 8px; font-weight: 300;
+    }
+    .subtitle {
+      color: rgba(255,255,255,0.35);
+      font-size: 11px; letter-spacing: 3px;
+      margin-bottom: 6px;
+    }
+
+    .btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff; padding: 12px 38px;
+      font-size: 12px; letter-spacing: 4px;
+      text-transform: uppercase; font-family: monospace;
+      cursor: pointer; transition: all 0.25s;
+    }
+    .btn:hover { border-color: #fff; background: rgba(255,255,255,0.07); }
+
+    #hud {
+      position: fixed; bottom: 22px; left: 22px;
+      font-size: 10px; letter-spacing: 1px;
+      color: rgba(255,255,255,0.2); line-height: 2;
+      pointer-events: none; display: none;
+    }
+    #hud.on { display: block; }
+    #hud em { color: rgba(255,255,255,0.5); font-style: normal; }
+
+    #hint {
+      position: fixed; top: 22px; right: 22px;
+      font-size: 10px; letter-spacing: 2px;
+      color: rgba(255,255,255,0.2); text-align: right;
+      line-height: 2.2; pointer-events: none; display: none;
+    }
+    #hint.on { display: block; }
+
+    canvas { position: fixed; top: 0; left: 0; }
+    video  { display: none; position: fixed; }
+  </style>
+</head>
+<body>
+
+<video id="cam" playsinline></video>
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div class="title">✦ KARAOKE WORLD ✦</div>
+  <div class="subtitle">sing · wave · play</div>
+  <button class="btn" id="btn-start">BEGIN</button>
+</div>
+
+<div id="hud">
+  VOL &nbsp;<em id="h-vol">—</em><br>
+  PITCH <em id="h-pitch">—</em><br>
+  HANDS <em id="h-hands">—</em>
+</div>
+
+<div id="hint">
+  WAVE TO PUSH PARTICLES<br>
+  PINCH TO BURST ✦
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script>
+
+// ══════════════════════════════════════════════════════════════════════════════
+// AUDIO ENGINE
+// ══════════════════════════════════════════════════════════════════════════════
+let audioCtx, analyserNode, timeBuf;
+const FFT_SIZE = 2048;
+
+async function initAudio() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = audioCtx.createMediaStreamSource(stream);
+  analyserNode = audioCtx.createAnalyser();
+  analyserNode.fftSize = FFT_SIZE;
+  analyserNode.smoothingTimeConstant = 0.6;
+  src.connect(analyserNode);
+  timeBuf = new Float32Array(FFT_SIZE);
+}
+
+function getRMS() {
+  if (!analyserNode) return 0;
+  analyserNode.getFloatTimeDomainData(timeBuf);
+  let sum = 0;
+  for (let i = 0; i < timeBuf.length; i++) sum += timeBuf[i] * timeBuf[i];
+  return Math.sqrt(sum / timeBuf.length);
+}
+
+function getPitch() {
+  if (!analyserNode) return -1;
+  analyserNode.getFloatTimeDomainData(timeBuf);
+  const N = timeBuf.length;
+  let rms = 0;
+  for (let i = 0; i < N; i++) rms += timeBuf[i] * timeBuf[i];
+  if (Math.sqrt(rms / N) < 0.012) return -1;
+
+  let r1 = 0, r2 = N - 1;
+  for (let i = 0; i < N / 2; i++) { if (Math.abs(timeBuf[i]) < 0.15) { r1 = i; break; } }
+  for (let i = 1; i < N / 2; i++) { if (Math.abs(timeBuf[N - i]) < 0.15) { r2 = N - i; break; } }
+
+  const buf = timeBuf.slice(r1, r2);
+  const M = buf.length;
+  const c = new Float32Array(M);
+  for (let i = 0; i < M; i++) for (let j = 0; j < M - i; j++) c[i] += buf[j] * buf[j + i];
+
+  let d = 0;
+  while (d < M - 1 && c[d] > c[d + 1]) d++;
+  let maxVal = -1, maxPos = -1;
+  for (let i = d; i < M; i++) { if (c[i] > maxVal) { maxVal = c[i]; maxPos = i; } }
+  if (maxPos < 1 || maxPos >= M - 1) return -1;
+
+  const x1 = c[maxPos - 1], x2 = c[maxPos], x3 = c[maxPos + 1];
+  const a = (x1 + x3 - 2 * x2) / 2;
+  const b = (x3 - x1) / 2;
+  const T0 = a ? maxPos - b / (2 * a) : maxPos;
+  const hz = audioCtx.sampleRate / T0;
+  return hz > 60 && hz < 1400 ? hz : -1;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PALETTE & HELPERS
+// ══════════════════════════════════════════════════════════════════════════════
+const PALETTE = [
+  '#FF3D9A', // hot pink
+  '#FFE600', // electric yellow
+  '#00CFFF', // sky blue
+  '#7FFF00', // lime
+  '#FF6B35', // orange
+  '#C77DFF', // lavender
+  '#FF4757', // coral
+  '#2ED573', // mint
+  '#FFC0CB', // baby pink
+  '#00F5FF', // cyan
+];
+
+function pickColor() {
+  return PALETTE[Math.floor(Math.random() * PALETTE.length)];
+}
+
+function pitchToColor(hz) {
+  if (hz < 0) return pickColor();
+  const t = Math.log(hz / 60) / Math.log(1400 / 60);
+  const base = t * (PALETTE.length - 1);
+  const jitter = (Math.random() - 0.5) * 2;
+  return PALETTE[Math.max(0, Math.min(PALETTE.length - 1, Math.round(base + jitter)))];
+}
+
+// Shape weights per pitch range: [star, heart, confetti, bubble, note, sparkle]
+function pitchWeights(hz) {
+  if (hz < 200)  return [0.10, 0.35, 0.10, 0.35, 0.05, 0.05]; // low: hearts + bubbles
+  if (hz < 400)  return [0.30, 0.20, 0.30, 0.10, 0.05, 0.05]; // mid-low: stars + confetti
+  if (hz < 700)  return [0.20, 0.10, 0.20, 0.08, 0.15, 0.27]; // mid: sparkles
+  return              [0.10, 0.05, 0.15, 0.05, 0.35, 0.30];   // high: notes + sparkles
+}
+
+const SHAPE_TYPES = ['star', 'heart', 'confetti', 'bubble', 'note', 'sparkle'];
+
+function weightedPick(weights) {
+  const r = Math.random();
+  let acc = 0;
+  for (let i = 0; i < weights.length; i++) {
+    acc += weights[i];
+    if (r <= acc) return SHAPE_TYPES[i];
+  }
+  return SHAPE_TYPES[SHAPE_TYPES.length - 1];
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// SHAPE CLASS
+// ══════════════════════════════════════════════════════════════════════════════
+const HOLD_FRAMES = 300; // 5 s at 60 fps — full opacity hold
+const FADE_FRAMES = 60;  // 1 s fade
+
+const GRAVITY  = 0.045;
+const DRAG     = 0.991;
+const BOUNCE   = 0.55;
+const MAX_VEL  = 20;
+
+const MAX_SHAPES = 1400;
+const shapes = [];
+
+class Shape {
+  constructor(x, y, type, opts = {}) {
+    this.x    = x;
+    this.y    = y;
+    this.type = type;
+
+    this.color  = opts.color  ?? pickColor();
+    this.color2 = PALETTE[Math.floor(Math.random() * PALETTE.length)];
+    this.size   = opts.size   ?? (8 + Math.random() * 16);
+
+    const spd   = opts.speed  ?? (1 + Math.random() * 3);
+    const ang   = opts.angle  ?? Math.random() * Math.PI * 2;
+    this.vx = Math.cos(ang) * spd;
+    this.vy = Math.sin(ang) * spd - 0.8; // slight upward bias on spawn
+
+    this.rotation = Math.random() * Math.PI * 2;
+    this.rotSpeed = (Math.random() - 0.5) * 0.18;
+    this.wobble   = Math.random() * Math.PI * 2;
+    this.wobbleSpd = 0.05 + Math.random() * 0.04;
+
+    this.age   = 0;
+    this.alpha = 1;
+  }
+
+  update(W, H) {
+    this.vx *= DRAG;
+    this.vy  = this.vy * DRAG + GRAVITY;
+    this.x  += this.vx;
+    this.y  += this.vy;
+    this.rotation += this.rotSpeed;
+    this.wobble   += this.wobbleSpd;
+    this.age++;
+
+    // Bounce off screen edges
+    const m = this.size;
+    if (this.x < m)     { this.x = m;     this.vx *= -BOUNCE; }
+    if (this.x > W - m) { this.x = W - m; this.vx *= -BOUNCE; }
+    if (this.y > H - m) { this.y = H - m; this.vy *= -BOUNCE; }
+    if (this.y < -m * 6){ this.vy = Math.abs(this.vy) * 0.4; }
+
+    // Lifecycle alpha
+    this.alpha = this.age <= HOLD_FRAMES
+      ? 1
+      : Math.max(0, 1 - (this.age - HOLD_FRAMES) / FADE_FRAMES);
+  }
+
+  push(fx, fy) {
+    this.vx += fx;
+    this.vy += fy;
+    const mag = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+    if (mag > MAX_VEL) { this.vx = (this.vx / mag) * MAX_VEL; this.vy = (this.vy / mag) * MAX_VEL; }
+  }
+
+  draw(ctx) {
+    if (this.alpha <= 0) return;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rotation);
+    ctx.globalAlpha = this.alpha;
+    switch (this.type) {
+      case 'star':     this._star(ctx);     break;
+      case 'heart':    this._heart(ctx);    break;
+      case 'confetti': this._confetti(ctx); break;
+      case 'bubble':   this._bubble(ctx);   break;
+      case 'note':     this._note(ctx);     break;
+      case 'sparkle':  this._sparkle(ctx);  break;
+    }
+    ctx.restore();
+  }
+
+  _star(ctx) {
+    const r1 = this.size, r2 = this.size * 0.42;
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? r1 : r2;
+      const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+      i === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+              : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  _heart(ctx) {
+    // Parametric heart curve: x=16sin³t, y=-(13cosT-5cos2T-2cos3T-cos4T)
+    const sc = this.size / 16;
+    ctx.save();
+    ctx.translate(0, -6 * sc); // vertical centering (y-range is approx -5 to 17)
+    ctx.beginPath();
+    const steps = 60;
+    for (let i = 0; i <= steps; i++) {
+      const t = (i / steps) * Math.PI * 2;
+      const hx = 16 * Math.pow(Math.sin(t), 3) * sc;
+      const hy = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * sc;
+      i === 0 ? ctx.moveTo(hx, hy) : ctx.lineTo(hx, hy);
+    }
+    ctx.closePath();
+    ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  _confetti(ctx) {
+    const w = this.size * 1.8, h = this.size * 0.55;
+    ctx.fillStyle = this.color;
+    ctx.fillRect(-w / 2, -h / 2, w, h);
+    ctx.fillStyle = this.color2;
+    ctx.fillRect(-w / 2, -h / 2, w / 2, h);
+    // thin white stripe
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(-1, -h / 2, 2, h);
+  }
+
+  _bubble(ctx) {
+    const r = this.size + Math.sin(this.wobble) * this.size * 0.1;
+    const grad = ctx.createRadialGradient(-r * 0.28, -r * 0.28, r * 0.04, 0, 0, r);
+    grad.addColorStop(0,   'rgba(255,255,255,0.95)');
+    grad.addColorStop(0.25, this.color + 'cc');
+    grad.addColorStop(1,    this.color + '22');
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    // shine dot
+    ctx.beginPath();
+    ctx.arc(-r * 0.3, -r * 0.3, r * 0.16, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fill();
+  }
+
+  _note(ctx) {
+    const s = this.size;
+    ctx.fillStyle = this.color;
+    // Note head (oval)
+    ctx.save();
+    ctx.scale(1.2, 0.85);
+    ctx.beginPath();
+    ctx.arc(0, s * 0.6, s * 0.55, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    // Stem
+    ctx.fillRect(s * 0.52, -s * 0.8, s * 0.18, s * 1.4);
+    // Flag
+    ctx.beginPath();
+    ctx.moveTo(s * 0.7, -s * 0.8);
+    ctx.bezierCurveTo(s * 1.4, -s * 0.5, s * 1.2, s * 0.1, s * 0.7, s * 0.2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  _sparkle(ctx) {
+    const r = this.size;
+    ctx.strokeStyle = this.color;
+    ctx.lineCap = 'round';
+    // 4 main arms
+    ctx.lineWidth = Math.max(1.5, r * 0.2);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      ctx.stroke();
+    }
+    // 4 diagonal shorter arms
+    ctx.lineWidth = Math.max(0.8, r * 0.1);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.5);
+      ctx.stroke();
+    }
+    // Bright center dot
+    ctx.beginPath();
+    ctx.arc(0, 0, r * 0.14, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fill();
+  }
+
+  get dead() { return this.age > HOLD_FRAMES + FADE_FRAMES; }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// HAND TRACKING (MediaPipe)
+// ══════════════════════════════════════════════════════════════════════════════
+let handPositions = []; // [{ x, y, pinching }]
+let handsReady    = false;
+
+async function initHands(videoEl) {
+  const hands = new Hands({
+    locateFile: (f) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`,
+  });
+  hands.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 0,
+    minDetectionConfidence: 0.65,
+    minTrackingConfidence: 0.5,
+  });
+  hands.onResults((results) => {
+    handPositions = [];
+    if (!results.multiHandLandmarks) return;
+    for (const lm of results.multiHandLandmarks) {
+      const palm  = lm[9];
+      const thumb = lm[4];
+      const index = lm[8];
+      const pinchDist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+      handPositions.push({
+        x: (1 - palm.x) * window.innerWidth, // mirror flip
+        y: palm.y * window.innerHeight,
+        pinching: pinchDist < 0.06,
+      });
+    }
+  });
+  const camera = new Camera(videoEl, {
+    onFrame: async () => { await hands.send({ image: videoEl }); },
+    width: 640, height: 480,
+  });
+  await camera.start();
+  handsReady = true;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// P5.JS SKETCH
+// ══════════════════════════════════════════════════════════════════════════════
+new p5(function(p) {
+  let canvas;
+  let smoothVol = 0, smoothPitch = 200, smoothSustain = 0;
+  let sustainTimer = 0;
+  let lastBurst = 0;
+  let recentPinchKeys = [];
+  let started = false;
+  let W, H;
+
+  const elHud   = document.getElementById('hud');
+  const elVol   = document.getElementById('h-vol');
+  const elPitch = document.getElementById('h-pitch');
+  const elHands = document.getElementById('h-hands');
+  const elHint  = document.getElementById('hint');
+
+  p.setup = function() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas = p.createCanvas(W, H);
+    canvas.elt.style.position = 'fixed';
+    canvas.elt.style.top = '0';
+    canvas.elt.style.left = '0';
+    p.noStroke();
+    p.background(8, 0, 15);
+  };
+
+  p.windowResized = function() {
+    W = window.innerWidth;
+    H = window.innerHeight;
+    p.resizeCanvas(W, H);
+  };
+
+  p.draw = function() {
+    const ctx = canvas.elt.getContext('2d');
+
+    // Dark trail fade — keeps ghosting without fully clearing
+    ctx.fillStyle = 'rgba(8,0,15,0.18)';
+    ctx.fillRect(0, 0, W, H);
+
+    if (!started) return;
+
+    // ── Audio reads ───────────────────────────────────────────────────────────
+    const rawVol   = getRMS();
+    const rawPitch = getPitch();
+
+    smoothVol = smoothVol * 0.78 + rawVol * 0.22;
+    if (rawPitch > 0) smoothPitch = smoothPitch * 0.82 + rawPitch * 0.18;
+
+    const VOL_THRESH = 0.018;
+    const vol    = Math.min(1, Math.max(0, (smoothVol - 0.005) / 0.22));
+    const active = smoothVol > VOL_THRESH;
+
+    if (active) sustainTimer = Math.min(sustainTimer + 1, 240);
+    else        sustainTimer = Math.max(0, sustainTimer - 4);
+    smoothSustain = smoothSustain * 0.93 + (sustainTimer / 240) * 0.07;
+
+    // ── Spawn shapes on voice ─────────────────────────────────────────────────
+    if (active && shapes.length < MAX_SHAPES) {
+      const weights    = pitchWeights(smoothPitch);
+      const spawnCount = Math.floor(1 + vol * 14);
+
+      for (let i = 0; i < spawnCount; i++) {
+        const type  = weightedPick(weights);
+        const color = pitchToColor(smoothPitch);
+        const size  = 7 + vol * 24 + Math.random() * 8;
+        const speed = 0.6 + vol * 2.8 + smoothSustain * 1.5;
+        shapes.push(new Shape(
+          Math.random() * W,
+          Math.random() * H,
+          type,
+          { color, size, speed, angle: Math.random() * Math.PI * 2 }
+        ));
+      }
+
+      // Loud burst: explosive cluster from random point
+      if (vol > 0.68 && p.frameCount - lastBurst > 12) {
+        lastBurst = p.frameCount;
+        const bx = Math.random() * W;
+        const by = Math.random() * H;
+        for (let i = 0; i < 24; i++) {
+          const a = (i / 24) * Math.PI * 2;
+          shapes.push(new Shape(bx, by, weightedPick(weights), {
+            color: pitchToColor(smoothPitch),
+            size:  (7 + vol * 20) * (0.7 + Math.random() * 0.6),
+            speed: 3 + vol * 4 + Math.random() * 2,
+            angle: a + (Math.random() - 0.5) * 0.5,
+          }));
+        }
+      }
+    }
+
+    // ── Hand physics ──────────────────────────────────────────────────────────
+    const REPULSE_R = 140;
+
+    for (const hp of handPositions) {
+      // Repulsion force on all nearby shapes
+      for (const s of shapes) {
+        const dx   = s.x - hp.x;
+        const dy   = s.y - hp.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < REPULSE_R && dist > 1) {
+          const strength = (1 - dist / REPULSE_R) * 7;
+          s.push((dx / dist) * strength, (dy / dist) * strength);
+        }
+      }
+
+      // Pinch gesture: burst from fingertip
+      if (hp.pinching) {
+        const key = `${Math.round(hp.x / 25)}_${Math.round(hp.y / 25)}`;
+        if (!recentPinchKeys.includes(key)) {
+          recentPinchKeys = [key, ...recentPinchKeys].slice(0, 8);
+          for (let i = 0; i < 20; i++) {
+            const a = (i / 20) * Math.PI * 2;
+            shapes.push(new Shape(hp.x, hp.y,
+              SHAPE_TYPES[Math.floor(Math.random() * SHAPE_TYPES.length)], {
+                color: PALETTE[Math.floor(Math.random() * PALETTE.length)],
+                size:  10 + Math.random() * 16,
+                speed: 3 + Math.random() * 5,
+                angle: a,
+              }
+            ));
+          }
+        }
+      }
+    }
+
+    // ── Draw all shapes (additive screen blend) ───────────────────────────────
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (let i = shapes.length - 1; i >= 0; i--) {
+      shapes[i].update(W, H);
+      shapes[i].draw(ctx);
+      if (shapes[i].dead) shapes.splice(i, 1);
+    }
+    ctx.restore();
+
+    // ── Hand aura glow ────────────────────────────────────────────────────────
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    for (const hp of handPositions) {
+      const r = hp.pinching ? 22 : REPULSE_R * 0.7;
+      const g = ctx.createRadialGradient(hp.x, hp.y, 0, hp.x, hp.y, r);
+      g.addColorStop(0, `rgba(255,255,255,${hp.pinching ? 0.55 : 0.1})`);
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      // Ring outline so performer can see their hand zone
+      ctx.strokeStyle = `rgba(255,255,255,${hp.pinching ? 0.6 : 0.15})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(hp.x, hp.y, hp.pinching ? 18 : REPULSE_R, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // ── Ambient voice pulse at center ─────────────────────────────────────────
+    if (active && vol > 0.08) {
+      const t   = Math.log(Math.max(61, smoothPitch) / 60) / Math.log(1400 / 60);
+      const hue = t * 300;
+      const pr  = 25 + vol * 90;
+      const g   = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, pr);
+      g.addColorStop(0, `hsla(${hue},100%,70%,${vol * 0.14})`);
+      g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.save();
+      ctx.globalCompositeOperation = 'screen';
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(W / 2, H / 2, pr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+
+    // ── HUD ───────────────────────────────────────────────────────────────────
+    elVol.textContent   = (smoothVol * 100).toFixed(1) + '%';
+    elPitch.textContent = smoothPitch > 0 ? smoothPitch.toFixed(0) + ' Hz' : '—';
+    elHands.textContent = handsReady
+      ? handPositions.length + ' detected'
+      : 'loading…';
+  };
+
+  // ── Start button ─────────────────────────────────────────────────────────────
+  document.getElementById('btn-start').addEventListener('click', async () => {
+    try {
+      await initAudio();
+    } catch (e) {
+      alert('Mic access denied:\n' + e.message);
+      return;
+    }
+
+    started = true;
+    const overlay = document.getElementById('overlay');
+    overlay.classList.add('fade-out');
+    setTimeout(() => overlay.style.display = 'none', 900);
+    elHud.classList.add('on');
+    elHint.classList.add('on');
+
+    // Camera hand-tracking — fails gracefully if denied
+    initHands(document.getElementById('cam')).catch(() => {
+      elHands.textContent = 'unavailable';
+    });
+  });
+});
+</script>
+</body>
+</html>

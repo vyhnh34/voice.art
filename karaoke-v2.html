@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Your Voice Is Art</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #000; overflow: hidden; font-family: monospace; }
+    canvas { position: fixed; inset: 0; }
+    video  { display: none; }
+
+    #overlay {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column; gap: 14px;
+      align-items: center; justify-content: center;
+      background: #000; z-index: 20;
+      transition: opacity 0.8s;
+    }
+    #overlay.out { opacity: 0; pointer-events: none; }
+
+    .t1 { color: #fff; font-size: 26px; letter-spacing: 8px; font-weight: 300; }
+    .t2 { color: rgba(255,255,255,0.3); font-size: 10px; letter-spacing: 3px; margin-bottom: 6px; }
+
+    button {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff; padding: 11px 36px;
+      font-size: 11px; letter-spacing: 4px;
+      text-transform: uppercase; font-family: monospace;
+      cursor: pointer; transition: all 0.2s;
+    }
+    button:hover { border-color: #fff; background: rgba(255,255,255,0.06); }
+
+    #hud-wrap {
+      position: fixed; bottom: 20px; left: 20px;
+      display: none;
+    }
+    #hud {
+      font-size: 10px; letter-spacing: 1px;
+      color: rgba(255,255,255,0.2); line-height: 2.1;
+      overflow: hidden;
+      transition: max-height 0.3s ease, opacity 0.3s ease;
+      max-height: 120px; opacity: 1;
+    }
+    #hud.collapsed { max-height: 0; opacity: 0; }
+    #hud b { color: rgba(255,255,255,0.5); font-weight: normal; }
+    #hud-toggle {
+      background: none; border: none;
+      color: rgba(255,255,255,0.25); font-size: 10px;
+      cursor: pointer; padding: 0; letter-spacing: 1px;
+      font-family: monospace; display: block;
+      margin-bottom: 2px; transition: color 0.2s;
+    }
+    #hud-toggle:hover { color: rgba(255,255,255,0.6); }
+
+    /* ── Camera capture button ─────────────────────────────── */
+    #cam-btn {
+      position: fixed; bottom: 20px; right: 20px;
+      background: none; border: none; padding: 8px;
+      cursor: pointer; display: none; z-index: 15;
+      opacity: 0.55; transition: opacity 0.2s, transform 0.2s;
+    }
+    #cam-btn:hover { opacity: 1; transform: scale(1.1); background: none; border: none; }
+
+    #cam-menu {
+      position: fixed; bottom: 58px; right: 20px;
+      display: none; flex-direction: column; gap: 6px;
+      z-index: 15;
+    }
+    #cam-menu.open { display: flex; }
+    #cam-menu button {
+      padding: 8px 18px; font-size: 10px; letter-spacing: 2px;
+      background: rgba(0,0,0,0.7);
+    }
+
+    #rec-dot {
+      position: fixed; bottom: 30px; right: 62px;
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #ff2244; display: none; z-index: 15;
+      animation: recblink 0.9s infinite;
+    }
+    @keyframes recblink { 50% { opacity: 0.25; } }
+
+    /* ── Photo frame modal ─────────────────────────────────── */
+    #frame-overlay {
+      position: fixed; inset: 0; z-index: 30;
+      background: rgba(0,0,0,0.65);
+      display: none; align-items: center; justify-content: center;
+      flex-direction: column; gap: 16px;
+    }
+    #frame-overlay.open { display: flex; }
+
+    #frame {
+      position: relative;
+      width: 468px; height: 481px;
+      background: #000000;
+      outline: 1px solid #fff;
+      box-shadow: 0 8px 60px rgba(0,0,0,0.9);
+    }
+    #frame .media {
+      position: absolute;
+      width: 468px; height: 331px;
+      left: 0; bottom: 0;
+      object-fit: cover;
+    }
+    #frame-caption {
+      position: absolute; left: 24px; top: 27px;
+      width: 220px; height: 20px;
+      background: none; border: none; outline: none;
+      font-family: monospace;
+      font-weight: 400; font-size: 12px; line-height: 14px;
+      color: rgba(192,192,192,0.9);
+      padding: 0; letter-spacing: 1px;
+      text-transform: none;
+    }
+    #frame-caption::placeholder { color: rgba(192,192,192,0.6); }
+    #frame .top-right {
+      position: absolute; top: 27px; right: 24px;
+      display: flex; align-items: baseline; gap: 18px;
+      font-family: monospace; letter-spacing: 1px;
+      font-size: 12px; line-height: 14px;
+      color: rgba(192,192,192,0.6);
+      white-space: nowrap;
+    }
+
+    #frame-actions { display: flex; gap: 10px; }
+    #frame-actions button { padding: 9px 26px; font-size: 10px; }
+  </style>
+</head>
+<body>
+
+<video id="cam" playsinline></video>
+<canvas id="c"></canvas>
+
+<div id="overlay">
+  <div class="t1">✦ YOUR VOICE IS ART ✦</div>
+  <div class="t2">become the particles</div>
+  <button id="btn">BEGIN</button>
+</div>
+
+<div id="hud-wrap">
+  <button id="hud-toggle">▲</button>
+  <div id="hud">
+    VOL &nbsp;<b id="h-vol">—</b><br>
+    PITCH <b id="h-pitch">—</b><br>
+    SIG &nbsp;&nbsp;<b id="h-sig">—</b><br>
+    PTS &nbsp;&nbsp;<b id="h-pts">—</b>
+  </div>
+</div>
+
+<button id="cam-btn" title="Capture">
+  <svg width="19" height="16" viewBox="0 0 19 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9.1 12.9152C10.1975 12.9152 11.1077 12.5454 11.8307 11.8058C12.5537 11.0661 12.9152 10.1642 12.9152 9.1C12.9152 8.0525 12.5537 7.15475 11.8307 6.40675C11.1077 5.65875 10.1975 5.28475 9.1 5.28475C8.0025 5.28475 7.09225 5.65875 6.36925 6.40675C5.64625 7.15475 5.28475 8.05667 5.28475 9.1125C5.28475 10.1683 5.64625 11.0661 6.36925 11.8058C7.09225 12.5454 8.0025 12.9152 9.1 12.9152ZM9.1 11.6155C8.3615 11.6155 7.75767 11.3714 7.2885 10.8833C6.81917 10.3953 6.5845 9.7925 6.5845 9.075C6.5845 8.3715 6.81917 7.78058 7.2885 7.30225C7.75767 6.82375 8.3615 6.5845 9.1 6.5845C9.8385 6.5845 10.4423 6.82375 10.9115 7.30225C11.3808 7.78058 11.6155 8.3715 11.6155 9.075C11.6155 9.7925 11.3808 10.3953 10.9115 10.8833C10.4423 11.3714 9.8385 11.6155 9.1 11.6155ZM1.60775 15.8C1.16925 15.8 0.791667 15.6417 0.475 15.325C0.158333 15.0083 0 14.6308 0 14.1923V4.00775C0 3.56925 0.158333 3.19167 0.475 2.875C0.791667 2.55833 1.16925 2.4 1.60775 2.4H4.5115L5.81925 0.65775C5.98342 0.443583 6.17908 0.280416 6.40625 0.16825C6.63358 0.0560829 6.87317 0 7.125 0H11.0795C11.3342 0 11.5737 0.0560829 11.798 0.16825C12.0223 0.280416 12.2166 0.443583 12.3807 0.65775L13.6885 2.4H16.5923C17.0424 2.4 17.4229 2.55833 17.7337 2.875C18.0446 3.19167 18.2 3.56925 18.2 4.00775V14.1923C18.2 14.6308 18.0446 15.0083 17.7337 15.325C17.4229 15.6417 17.0424 15.8 16.5923 15.8H1.60775ZM1.60775 14.5H16.5923C16.6821 14.5 16.7558 14.4712 16.8135 14.4135C16.8712 14.3558 16.9 14.2821 16.9 14.1923V4.00775C16.9 3.91792 16.8712 3.84417 16.8135 3.7865C16.7558 3.72883 16.6821 3.7 16.5923 3.7H13.0193L11.2072 1.3H6.9905L5.18075 3.7H1.60775C1.51792 3.7 1.44417 3.72883 1.3865 3.7865C1.32883 3.84417 1.3 3.91792 1.3 4.00775V14.1923C1.3 14.2821 1.32883 14.3558 1.3865 14.4135C1.44417 14.4712 1.51792 14.5 1.60775 14.5Z" fill="#E3E3E3"/>
+  </svg>
+</button>
+
+<div id="cam-menu">
+  <button id="shot-still">PHOTO</button>
+  <button id="shot-clip">3S CLIP</button>
+</div>
+
+<div id="rec-dot"></div>
+
+<div id="frame-overlay">
+  <div id="frame">
+    <input id="frame-caption" type="text" placeholder="Write caption" maxlength="40" />
+    <div class="top-right">
+      <span>yourvoice.art</span>
+      <span id="frame-date"></span>
+    </div>
+    <img class="media" id="frame-img" style="display:none" />
+    <video class="media" id="frame-video" style="display:none" autoplay loop muted playsinline></video>
+  </div>
+  <div id="frame-actions">
+    <button id="frame-save">SAVE</button>
+    <button id="frame-close">CLOSE</button>
+  </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script>
+
+// ══════════════════════════════════════════════════════════════════════
+// CANVAS
+// ══════════════════════════════════════════════════════════════════════
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+let W = canvas.width  = innerWidth;
+let H = canvas.height = innerHeight;
+window.addEventListener('resize', () => {
+  W = canvas.width  = innerWidth;
+  H = canvas.height = innerHeight;
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// AUDIO ENGINE
+// ══════════════════════════════════════════════════════════════════════
+let audioCtx, analyser, timeBuf;
+const FFT = 2048;
+
+async function initAudio() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  const src = audioCtx.createMediaStreamSource(stream);
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = FFT;
+  analyser.smoothingTimeConstant = 0.6;
+  src.connect(analyser);
+  timeBuf = new Float32Array(FFT);
+}
+
+function getRMS() {
+  if (!analyser) return 0;
+  analyser.getFloatTimeDomainData(timeBuf);
+  let s = 0;
+  for (let i = 0; i < FFT; i++) s += timeBuf[i] * timeBuf[i];
+  return Math.sqrt(s / FFT);
+}
+
+function getPitch() {
+  if (!analyser) return -1;
+  analyser.getFloatTimeDomainData(timeBuf);
+  let rms = 0;
+  for (let i = 0; i < FFT; i++) rms += timeBuf[i] * timeBuf[i];
+  if (Math.sqrt(rms / FFT) < 0.012) return -1;
+  let r1 = 0, r2 = FFT - 1;
+  for (let i = 0; i < FFT / 2; i++) { if (Math.abs(timeBuf[i]) < 0.15)      { r1 = i;       break; } }
+  for (let i = 1; i < FFT / 2; i++) { if (Math.abs(timeBuf[FFT - i]) < 0.15){ r2 = FFT - i; break; } }
+  const buf = timeBuf.slice(r1, r2);
+  const M = buf.length;
+  const c = new Float32Array(M);
+  for (let i = 0; i < M; i++) for (let j = 0; j < M - i; j++) c[i] += buf[j] * buf[j + i];
+  let d = 0;
+  while (d < M - 1 && c[d] > c[d + 1]) d++;
+  let mv = -1, mp = -1;
+  for (let i = d; i < M; i++) { if (c[i] > mv) { mv = c[i]; mp = i; } }
+  if (mp < 1 || mp >= M - 1) return -1;
+  const x1 = c[mp-1], x2 = c[mp], x3 = c[mp+1];
+  const a = (x1 + x3 - 2*x2) / 2;
+  const b = (x3 - x1) / 2;
+  const T0 = a ? mp - b / (2*a) : mp;
+  const hz = audioCtx.sampleRate / T0;
+  return hz > 60 && hz < 1400 ? hz : -1;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// PITCH SIGNATURES — 6 bands, each with distinct color + shape identity
+// ══════════════════════════════════════════════════════════════════════
+const SIGS = [
+  {                         // ① 60–180 Hz  deep / bass
+    name: 'BASS',
+    pal:  ['#9933FF','#6600CC','#BB77FF','#7722DD'],
+    shape: 'orb',            // large soft circle
+    szBody: [1.2, 2.0],      // body dot size range
+    szAccent: [4, 8],        // accent shape size
+  },
+  {                         // ② 180–300 Hz  low / baritone
+    name: 'LOW',
+    pal:  ['#1177FF','#0055CC','#44AAFF','#0066EE'],
+    shape: 'ring',           // circle outline + center dot
+    szBody: [1.0, 1.8],
+    szAccent: [4, 7],
+  },
+  {                         // ③ 300–450 Hz  mid-low / alto
+    name: 'ALTO',
+    pal:  ['#00CC88','#009966','#33FF99','#00AA77'],
+    shape: 'diamond',        // rotated square
+    szBody: [1.0, 1.6],
+    szAccent: [3, 7],
+  },
+  {                         // ④ 450–650 Hz  mid / mezzo-soprano
+    name: 'MEZZO',
+    pal:  ['#FFBB00','#DD8800','#FFD700','#FFAA33'],
+    shape: 'square',         // flat confetti rect
+    szBody: [1.0, 1.6],
+    szAccent: [3, 6],
+  },
+  {                         // ⑤ 650–900 Hz  high / soprano
+    name: 'SOPRANO',
+    pal:  ['#FF1188','#CC0055','#FF77AA','#EE0077'],
+    shape: 'cross',          // + cross
+    szBody: [0.8, 1.4],
+    szAccent: [3, 5],
+  },
+  {                         // ⑥ 900–1400 Hz  very high / falsetto
+    name: 'FALSETTO',
+    pal:  ['#DFFFFF','#AAFFEE','#FFFFFF','#CCFFFF'],
+    shape: 'spark',          // 4-arm sparkle
+    szBody: [0.7, 1.2],
+    szAccent: [2, 5],
+  },
+];
+
+function getSig(hz) {
+  if (hz < 130)  return SIGS[0];   // BASS      60–130 Hz
+  if (hz < 200)  return SIGS[1];   // LOW      130–200 Hz
+  if (hz < 290)  return SIGS[2];   // ALTO     200–290 Hz
+  if (hz < 400)  return SIGS[3];   // MEZZO    290–400 Hz
+  if (hz < 560)  return SIGS[4];   // SOPRANO  400–560 Hz
+  return SIGS[5];                   // FALSETTO 560–1400 Hz
+}
+function rndColor(sig) { return sig.pal[Math.floor(Math.random() * sig.pal.length)]; }
+
+// ══════════════════════════════════════════════════════════════════════
+// PARTICLE POOLS
+// ══════════════════════════════════════════════════════════════════════
+const BODY_HOLD  = 30;   // 0.5 s hold
+const BODY_FADE  = 30;   // 0.5 s fade
+const VOICE_HOLD = 180;  // 3 s hold
+const VOICE_FADE = 60;   // 1 s fade
+const MAX_BODY   = 9000;
+const MAX_VOICE  = 2500;
+
+let bodyPool  = [];
+let voicePool = [];
+
+// Body silhouette particles — lightweight plain objects
+function spawnBody(x, y, color, sz) {
+  if (bodyPool.length >= MAX_BODY) return;
+  bodyPool.push({
+    x, y, color, sz, age: 0,
+    vx: (Math.random() - 0.5) * 0.25,
+    vy: (Math.random() - 0.5) * 0.25,
+  });
+}
+
+// Voice-driven accent particles — carry shape + rotation
+function spawnVoice(x, y, sig, sz, shape) {
+  if (voicePool.length >= MAX_VOICE) return;
+  voicePool.push({
+    x, y, sz, shape, age: 0,
+    color: rndColor(sig),
+    rot: Math.random() * Math.PI * 2,
+    rotSpd: (Math.random() - 0.5) * 0.05,
+    vx: (Math.random() - 0.5) * 0.35,
+    vy: (Math.random() - 0.5) * 0.35,
+  });
+}
+
+
+// ══════════════════════════════════════════════════════════════════════
+// SHAPE RENDERER
+// ══════════════════════════════════════════════════════════════════════
+function drawShape(shape, x, y, sz, color, rot) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(rot);
+  ctx.fillStyle   = color;
+  ctx.strokeStyle = color;
+
+  switch (shape) {
+    case 'orb':
+      ctx.beginPath();
+      ctx.arc(0, 0, sz, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case 'ring':
+      ctx.lineWidth = Math.max(0.6, sz * 0.22);
+      ctx.beginPath();
+      ctx.arc(0, 0, sz * 0.72, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, sz * 0.18, 0, Math.PI * 2);
+      ctx.fill();
+      break;
+
+    case 'diamond':
+      ctx.beginPath();
+      ctx.moveTo(0, -sz);
+      ctx.lineTo(sz * 0.58, 0);
+      ctx.lineTo(0,  sz);
+      ctx.lineTo(-sz * 0.58, 0);
+      ctx.closePath();
+      ctx.fill();
+      break;
+
+    case 'square':
+      ctx.fillRect(-sz * 0.85, -sz * 0.38, sz * 1.7, sz * 0.76);
+      break;
+
+    case 'cross': {
+      const lw = Math.max(0.7, sz * 0.28);
+      ctx.lineWidth = lw;
+      ctx.lineCap   = 'round';
+      ctx.beginPath(); ctx.moveTo(-sz, 0); ctx.lineTo(sz, 0); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -sz); ctx.lineTo(0, sz); ctx.stroke();
+      break;
+    }
+
+    case 'spark': {
+      ctx.lineWidth = Math.max(0.5, sz * 0.2);
+      ctx.lineCap   = 'round';
+      for (let i = 0; i < 4; i++) {
+        const a = (i / 4) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(Math.cos(a) * sz, Math.sin(a) * sz);
+        ctx.stroke();
+      }
+      ctx.beginPath();
+      ctx.arc(0, 0, sz * 0.15, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// BODY SEGMENTATION (MediaPipe SelfieSegmentation)
+// ══════════════════════════════════════════════════════════════════════
+let bodyPixels = [];     // cached screen-coord list of person pixels
+const segCanvas = document.createElement('canvas');
+const segCtx    = segCanvas.getContext('2d', { willReadFrequently: true });
+
+function onSegResults(results) {
+  const mask = results.segmentationMask;
+  if (!mask) return;
+  const mw = mask.width, mh = mask.height;
+  segCanvas.width  = mw;
+  segCanvas.height = mh;
+  segCtx.drawImage(mask, 0, 0);
+  const raw = segCtx.getImageData(0, 0, mw, mh).data;
+
+  bodyPixels = [];
+  // stride 3 → check ~57k pixels from 640×480, fast enough each seg frame
+  for (let y = 0; y < mh; y += 3) {
+    for (let x = 0; x < mw; x += 3) {
+      if (raw[(y * mw + x) * 4] > 110) {        // R channel = person confidence
+        bodyPixels.push({
+          sx: (x / mw) * W,
+          sy: (y / mh) * H,
+        });
+      }
+    }
+  }
+}
+
+function sampleBody(n) {
+  if (!bodyPixels.length) return [];
+  const out = [];
+  for (let i = 0; i < n; i++)
+    out.push(bodyPixels[Math.floor(Math.random() * bodyPixels.length)]);
+  return out;
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// HAND TRACKING (MediaPipe Hands)
+// ══════════════════════════════════════════════════════════════════════
+let handPalms = [];
+
+function onHandResults(results) {
+  handPalms = [];
+  if (!results.multiHandLandmarks) return;
+  for (const lm of results.multiHandLandmarks) {
+    const p = lm[9], th = lm[4], ix = lm[8];
+    handPalms.push({
+      x: p.x * W,
+      y: p.y * H,
+      pinching: Math.hypot(th.x - ix.x, th.y - ix.y) < 0.06,
+    });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// CAMERA INIT — feeds both models from one stream
+// ══════════════════════════════════════════════════════════════════════
+async function initCamera(videoEl) {
+  const seg = new SelfieSegmentation({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${f}`
+  });
+  seg.setOptions({ modelSelection: 1, selfieMode: true });
+  seg.onResults(onSegResults);
+
+  const hands = new Hands({
+    locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}`
+  });
+  hands.setOptions({ maxNumHands: 2, modelComplexity: 0,
+    minDetectionConfidence: 0.6, minTrackingConfidence: 0.5 });
+  hands.onResults(onHandResults);
+
+  const cam = new Camera(videoEl, {
+    onFrame: async () => {
+      await seg.send({ image: videoEl });
+      await hands.send({ image: videoEl });
+    },
+    width: 640, height: 480,
+  });
+  await cam.start();
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RENDER LOOP
+// ══════════════════════════════════════════════════════════════════════
+let smoothVol = 0, smoothPitch = 260;
+let started  = false;
+let lastSigName = '';
+
+const elVol   = document.getElementById('h-vol');
+const elPitch = document.getElementById('h-pitch');
+const elSig   = document.getElementById('h-sig');
+const elPts   = document.getElementById('h-pts');
+
+function frame() {
+  requestAnimationFrame(frame);
+
+  // Full clear each frame — clean silhouette, no smearing
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!started) return;
+
+  // ── Audio read ──────────────────────────────────────────────────────
+  const rawVol   = getRMS();
+  const rawPitch = getPitch();
+  smoothVol   = smoothVol   * 0.80 + rawVol   * 0.20;
+  if (rawPitch > 0) smoothPitch = smoothPitch * 0.85 + rawPitch * 0.15;
+
+  const vol    = Math.min(1, Math.max(0, (smoothVol - 0.005) / 0.2));
+  const active = smoothVol > 0.018;
+  // Always use last known pitch so sig/color persists when silent
+  const sig = getSig(smoothPitch);
+
+  // ── Body silhouette — always on while camera sees a person ──────────
+  if (bodyPixels.length > 0) {
+    const bodyCount = 38 + Math.floor(vol * 22);
+    for (const bp of sampleBody(bodyCount)) {
+      const sz = sig.szBody[0] + Math.random() * (sig.szBody[1] - sig.szBody[0]);
+      spawnBody(bp.sx, bp.sy, rndColor(sig), sz);
+    }
+
+    // Accent particles — trickle always, surge when singing
+    const vCount = active ? Math.floor(4 + vol * 10) : 2;
+    const src = sampleBody(vCount);
+    for (let i = 0; i < vCount; i++) {
+      const bp  = src[i];
+      const bdx = bp.sx - W * 0.5, bdy = bp.sy - H * 0.45;
+      const bd  = Math.sqrt(bdx * bdx + bdy * bdy) || 1;
+      const spr = active ? 5 + Math.random() * 22 : 2 + Math.random() * 8;
+      const vx  = bp.sx + (bdx / bd) * spr * Math.random();
+      const vy  = bp.sy + (bdy / bd) * spr * Math.random();
+      const isAccent = active && Math.random() < 0.22;
+      const sz = isAccent
+        ? sig.szAccent[0] + Math.random() * (sig.szAccent[1] - sig.szAccent[0])
+        : sig.szBody[1]   + Math.random() * 1.2;
+      spawnVoice(vx, vy, sig, sz, isAccent ? sig.shape : 'orb');
+    }
+  } else if (active) {
+    // No camera — fallback to random positions when singing
+    const vCount = Math.floor(4 + vol * 10);
+    for (let i = 0; i < vCount; i++) {
+      const isAccent = Math.random() < 0.22;
+      const sz = isAccent
+        ? sig.szAccent[0] + Math.random() * (sig.szAccent[1] - sig.szAccent[0])
+        : sig.szBody[1]   + Math.random() * 1.2;
+      spawnVoice(Math.random() * W, Math.random() * H, sig, sz, isAccent ? sig.shape : 'orb');
+    }
+  }
+
+  // ── Update body particles (gentle random walk, strong drag) ─────────
+  for (let i = bodyPool.length - 1; i >= 0; i--) {
+    const p = bodyPool[i];
+    p.vx += (Math.random() - 0.5) * 0.04;
+    p.vy += (Math.random() - 0.5) * 0.04;
+    p.vx *= 0.90; p.vy *= 0.90;
+    p.x  += p.vx; p.y  += p.vy;
+    p.age++;
+    if (p.age > BODY_HOLD + BODY_FADE) { bodyPool.splice(i, 1); }
+  }
+
+  // ── Update voice particles (minimal drift, no gravity) ──────────────
+  for (let i = voicePool.length - 1; i >= 0; i--) {
+    const p = voicePool[i];
+    p.vx *= 0.95; p.vy *= 0.95;
+    p.x  += p.vx; p.y  += p.vy;
+    p.rot += p.rotSpd;
+    p.age++;
+    if (p.age > VOICE_HOLD + VOICE_FADE) { voicePool.splice(i, 1); }
+  }
+
+  // ── Draw body particles (screen blend for natural glow) ─────────────
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const p of bodyPool) {
+    const a = p.age <= BODY_HOLD
+      ? 0.80
+      : 0.80 * (1 - (p.age - BODY_HOLD) / BODY_FADE);
+    if (a <= 0) continue;
+    ctx.globalAlpha = a;
+    ctx.fillStyle   = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
+  // ── Draw voice accent particles ──────────────────────────────────────
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  for (const p of voicePool) {
+    const a = p.age <= VOICE_HOLD
+      ? 0.90
+      : 0.90 * (1 - (p.age - VOICE_HOLD) / VOICE_FADE);
+    if (a <= 0) continue;
+    ctx.globalAlpha = a;
+    drawShape(p.shape, p.x, p.y, p.sz, p.color, p.rot);
+  }
+  ctx.restore();
+
+  // ── HUD ──────────────────────────────────────────────────────────────
+  elVol.textContent    = (smoothVol * 100).toFixed(1) + '%';
+  elPitch.textContent  = smoothPitch.toFixed(0) + ' Hz';
+  elPitch.style.color  = sig.pal[0];
+  elSig.textContent    = sig.name;
+  elSig.style.color    = sig.pal[0];
+  elPts.textContent    = (bodyPool.length + voicePool.length);
+}
+requestAnimationFrame(frame);
+
+// ══════════════════════════════════════════════════════════════════════
+// START
+// ══════════════════════════════════════════════════════════════════════
+document.getElementById('btn').addEventListener('click', async () => {
+  try { await initAudio(); }
+  catch (e) { alert('Microphone denied:\n' + e.message); return; }
+
+  started = true;
+  const ov = document.getElementById('overlay');
+  ov.classList.add('out');
+  setTimeout(() => ov.style.display = 'none', 850);
+  document.getElementById('hud-wrap').style.display = 'block';
+  document.getElementById('cam-btn').style.display  = 'block';
+
+  // Camera is non-blocking — silhouette activates once model loads
+  initCamera(document.getElementById('cam')).catch(() => {
+    elSig.textContent = 'no cam — voice only';
+  });
+});
+
+// Toggle button
+document.getElementById('hud-toggle').addEventListener('click', () => {
+  const hud = document.getElementById('hud');
+  const btn = document.getElementById('hud-toggle');
+  const collapsed = hud.classList.toggle('collapsed');
+  btn.textContent = collapsed ? '▼' : '▲';
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// CAPTURE — photo / 3s clip → framed popup
+// ══════════════════════════════════════════════════════════════════════
+const camBtn    = document.getElementById('cam-btn');
+const camMenu   = document.getElementById('cam-menu');
+const recDot    = document.getElementById('rec-dot');
+const frameOv   = document.getElementById('frame-overlay');
+const frameImg  = document.getElementById('frame-img');
+const frameVid  = document.getElementById('frame-video');
+const frameCap  = document.getElementById('frame-caption');
+const frameDate = document.getElementById('frame-date');
+
+let capturedBlob = null;   // Blob of the raw capture
+let capturedKind = null;   // 'photo' | 'clip'
+
+function todayStr() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${p(d.getMonth() + 1)}.${p(d.getDate())}.${d.getFullYear()}`;
+}
+
+function openFrame(blob, kind) {
+  capturedBlob = blob;
+  capturedKind = kind;
+  const url = URL.createObjectURL(blob);
+  if (kind === 'photo') {
+    frameImg.src = url;
+    frameImg.style.display = 'block';
+    frameVid.style.display = 'none';
+  } else {
+    frameVid.src = url;
+    frameVid.style.display = 'block';
+    frameImg.style.display = 'none';
+  }
+  frameCap.value = '';
+  frameDate.textContent = todayStr();
+  frameOv.classList.add('open');
+}
+
+camBtn.addEventListener('click', () => camMenu.classList.toggle('open'));
+
+// ── Still photo ──────────────────────────────────────────────
+document.getElementById('shot-still').addEventListener('click', () => {
+  camMenu.classList.remove('open');
+  canvas.toBlob(blob => openFrame(blob, 'photo'), 'image/png');
+});
+
+// ── 3-second clip ────────────────────────────────────────────
+document.getElementById('shot-clip').addEventListener('click', () => {
+  camMenu.classList.remove('open');
+  const stream = canvas.captureStream(30);
+  const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+  const rec  = new MediaRecorder(stream, { mimeType: mime });
+  const chunks = [];
+  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  rec.onstop = () => {
+    recDot.style.display = 'none';
+    openFrame(new Blob(chunks, { type: mime }), 'clip');
+  };
+  recDot.style.display = 'block';
+  rec.start();
+  setTimeout(() => rec.stop(), 3000);
+});
+
+// ── Save ─────────────────────────────────────────────────────
+function download(url, filename) {
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+}
+
+// Draw one postcard frame (texts + media cover-cropped into bottom 468x331)
+function drawPostcard(f, media, mw, mh) {
+  f.fillStyle = '#000';
+  f.fillRect(0, 0, 468, 481);
+
+  f.font = '12px monospace';
+  if (frameCap.value.trim()) {
+    f.fillStyle = 'rgba(192,192,192,0.9)';
+    f.fillText(frameCap.value.trim(), 24, 43);
+  }
+  // Right-aligned pair: date flush to right edge, brand 18px left of it
+  f.fillStyle = 'rgba(192,192,192,0.6)';
+  const dateStr  = frameDate.textContent;
+  const dateW    = f.measureText(dateStr).width;
+  const dateX    = 468 - 24 - dateW;
+  f.fillText(dateStr, dateX, 43);
+  const brandStr = 'yourvoice.art';
+  const brandW   = f.measureText(brandStr).width;
+  f.fillText(brandStr, dateX - 18 - brandW, 43);
+
+  if (mw && mh) {
+    const tw = 468, th = 331;
+    const s  = Math.max(tw / mw, th / mh);
+    const sw = tw / s, sh = th / s;
+    f.drawImage(media, (mw - sw) / 2, (mh - sh) / 2, sw, sh, 0, 481 - th, tw, th);
+  }
+
+  // White outline to match the on-screen popup
+  f.strokeStyle = '#fff';
+  f.lineWidth   = 1;
+  f.strokeRect(0.5, 0.5, 467, 480);
+}
+
+document.getElementById('frame-save').addEventListener('click', () => {
+  if (!capturedBlob) return;
+  const stamp = todayStr().replaceAll('.', '-');
+  const SCALE = 2;
+  const fc = document.createElement('canvas');
+  fc.width = 468 * SCALE; fc.height = 481 * SCALE;
+  const f = fc.getContext('2d');
+  f.scale(SCALE, SCALE);
+
+  if (capturedKind === 'photo') {
+    const img = new Image();
+    img.onload = () => {
+      drawPostcard(f, img, img.width, img.height);
+      download(fc.toDataURL('image/png'), `yourvoice-${stamp}.png`);
+    };
+    img.src = URL.createObjectURL(capturedBlob);
+  } else {
+    // Re-record the full postcard: draw video into frame canvas each tick
+    const stream = fc.captureStream(30);
+    const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
+    const rec  = new MediaRecorder(stream, { mimeType: mime });
+    const chunks = [];
+    let raf;
+    rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    rec.onstop = () => {
+      cancelAnimationFrame(raf);
+      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      download(URL.createObjectURL(new Blob(chunks, { type: mime })), `yourvoice-${stamp}.${ext}`);
+    };
+    const tick = () => {
+      drawPostcard(f, frameVid, frameVid.videoWidth, frameVid.videoHeight);
+      raf = requestAnimationFrame(tick);
+    };
+    frameVid.currentTime = 0;
+    frameVid.play();
+    tick();
+    rec.start();
+    setTimeout(() => rec.stop(), 3100);
+  }
+});
+
+document.getElementById('frame-close').addEventListener('click', () => {
+  frameOv.classList.remove('open');
+  frameVid.pause();
+  frameVid.src = '';
+  frameImg.src = '';
+  capturedBlob = null;
+});
+</script>
+</body>
+</html>
