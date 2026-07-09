@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Your Voice Is Art</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400..900&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #000; overflow: hidden; font-family: monospace; }
@@ -110,19 +113,19 @@
       position: absolute; left: 24px; top: 27px;
       width: 220px; height: 20px;
       background: none; border: none; outline: none;
-      font-family: monospace;
+      font-family: 'Doto', monospace;
       font-weight: 400; font-size: 12px; line-height: 14px;
-      color: rgba(192,192,192,0.9);
+      color: #C0C0C0;
       padding: 0; letter-spacing: 1px;
       text-transform: none;
     }
-    #frame-caption::placeholder { color: rgba(192,192,192,0.6); }
+    #frame-caption::placeholder { color: #C0C0C0; opacity: 0.7; }
     #frame .top-right {
       position: absolute; top: 27px; right: 24px;
       display: flex; align-items: baseline; gap: 18px;
-      font-family: monospace; letter-spacing: 1px;
+      font-family: 'Doto', monospace; letter-spacing: 1px;
       font-size: 12px; line-height: 14px;
-      color: rgba(192,192,192,0.6);
+      color: #C0C0C0;
       white-space: nowrap;
     }
 
@@ -770,13 +773,13 @@ function drawPostcard(f, media, mw, mh) {
   f.fillStyle = '#000';
   f.fillRect(0, 0, 468, 481);
 
-  f.font = '12px monospace';
+  f.font = "12px 'Doto', monospace";
   if (frameCap.value.trim()) {
-    f.fillStyle = 'rgba(192,192,192,0.9)';
+    f.fillStyle = '#C0C0C0';
     f.fillText(frameCap.value.trim(), 24, 43);
   }
   // Right-aligned pair: date flush to right edge, brand 18px left of it
-  f.fillStyle = 'rgba(192,192,192,0.6)';
+  f.fillStyle = '#C0C0C0';
   const dateStr  = frameDate.textContent;
   const dateW    = f.measureText(dateStr).width;
   const dateX    = 468 - 24 - dateW;
@@ -798,8 +801,9 @@ function drawPostcard(f, media, mw, mh) {
   f.strokeRect(0.5, 0.5, 467, 480);
 }
 
-document.getElementById('frame-save').addEventListener('click', () => {
+document.getElementById('frame-save').addEventListener('click', async () => {
   if (!capturedBlob) return;
+  await document.fonts.load("12px 'Doto'"); // ensure webfont is ready before canvas text draws
   const stamp = todayStr().replaceAll('.', '-');
   const SCALE = 2;
   const fc = document.createElement('canvas');
