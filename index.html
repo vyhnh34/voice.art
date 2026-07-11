@@ -106,6 +106,125 @@
     }
     @keyframes recblink { 50% { opacity: 0.25; } }
 
+    /* ── DIAL — visual-mode + camera controls (dialkit-styled) ────── */
+    #dial {
+      --dial-surface: rgba(255,255,255,0.05);
+      --dial-surface-hover: rgba(255,255,255,0.1);
+      --dial-surface-active: rgba(255,255,255,0.11);
+      --dial-surface-subtle: rgba(255,255,255,0.06);
+      --dial-text-label: rgba(255,255,255,0.7);
+      --dial-text-primary: rgba(255,255,255,0.95);
+      --dial-border: rgba(255,255,255,0.1);
+      --dial-border-hover: rgba(255,255,255,0.15);
+      --dial-glass-bg: #212121;
+      --dial-dropdown-bg: #2a2a2a;
+      --dial-radius: 8px;
+      --dial-row-height: 34px;
+      --dial-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      position: fixed; top: 20px; right: 20px; z-index: 16;
+      display: none; font-family: monospace;
+    }
+    #dial-toggle {
+      width: 34px; height: 34px; padding: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--dial-glass-bg); border: 1px solid var(--dial-border);
+      border-radius: 50%; cursor: pointer; opacity: 0.65;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+    #dial-toggle:hover { opacity: 1; transform: scale(1.06); background: var(--dial-glass-bg); }
+    #dial-toggle svg { width: 15px; height: 15px; }
+
+    #dial-panel {
+      position: absolute; top: 42px; right: 0; width: 230px;
+      background: var(--dial-glass-bg); border: 1px solid var(--dial-border);
+      border-radius: 12px; box-shadow: var(--dial-shadow);
+      padding: 12px; display: none; flex-direction: column; gap: 8px;
+    }
+    #dial-panel.open { display: flex; }
+    .dial-title {
+      font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--dial-text-label); padding-bottom: 8px; margin-bottom: 2px;
+      border-bottom: 1px solid var(--dial-surface-subtle);
+    }
+
+    .dialkit-select-trigger {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; height: var(--dial-row-height); padding: 0 10px;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--dial-text-label); background: var(--dial-surface);
+      border: none; border-radius: var(--dial-radius); cursor: pointer;
+      transition: background 0.15s; font-family: monospace;
+    }
+    .dialkit-select-trigger:hover { background: var(--dial-surface-hover); }
+    .dialkit-select-trigger[data-open="true"] { background: var(--dial-surface-active); }
+    .dialkit-select-right { display: flex; align-items: center; gap: 6px; }
+    .dialkit-select-value { color: var(--dial-text-primary); }
+    .dialkit-select-chevron { width: 12px; height: 12px; opacity: 0.6; }
+
+    .dialkit-select-dropdown {
+      position: absolute; margin-top: 4px; width: 100%;
+      background: var(--dial-dropdown-bg); border: 1px solid var(--dial-border);
+      border-radius: var(--dial-radius); padding: 4px; z-index: 20;
+      display: none; flex-direction: column; gap: 2px;
+    }
+    .dialkit-select-dropdown.open { display: flex; }
+    .dialkit-select-option {
+      display: block; width: 100%; padding: 7px 9px; text-align: left;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--dial-text-label); background: transparent; border: none;
+      border-radius: 6px; cursor: pointer; font-family: monospace;
+      transition: background 0.15s, color 0.15s;
+    }
+    .dialkit-select-option:hover { background: var(--dial-surface-hover); }
+    .dialkit-select-option[data-selected="true"] { color: var(--dial-text-primary); background: var(--dial-surface-active); }
+
+    .dialkit-toggle {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 10px; height: var(--dial-row-height);
+      background: var(--dial-surface); border-radius: var(--dial-radius);
+      cursor: pointer; user-select: none; transition: background 0.15s;
+    }
+    .dialkit-toggle:hover { background: var(--dial-surface-hover); }
+    .dialkit-toggle-label {
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--dial-text-label); transition: color 0.15s;
+    }
+    .dialkit-toggle[data-checked="true"] .dialkit-toggle-label { color: var(--dial-text-primary); }
+    .dialkit-toggle-track {
+      width: 32px; height: 18px; border-radius: 9px;
+      background: var(--dial-surface-active); position: relative; transition: background 0.2s;
+    }
+    .dialkit-toggle[data-checked="true"] .dialkit-toggle-track { background: var(--dial-border-hover); }
+    .dialkit-toggle-thumb {
+      position: absolute; top: 2px; left: 2px; width: 14px; height: 14px;
+      border-radius: 7px; background: var(--dial-text-primary); transition: left 0.2s;
+    }
+    .dialkit-toggle[data-checked="true"] .dialkit-toggle-thumb { left: 16px; }
+
+    .dial-row-hidden { display: none !important; }
+
+    .dialkit-slider-row {
+      display: flex; flex-direction: column; gap: 6px;
+      padding: 8px 10px; background: var(--dial-surface); border-radius: var(--dial-radius);
+    }
+    .dialkit-slider-row-top {
+      display: flex; justify-content: space-between;
+      font-size: 9px; letter-spacing: 1px; text-transform: uppercase;
+      color: var(--dial-text-label);
+    }
+    .dialkit-slider-row input[type="range"] {
+      -webkit-appearance: none; appearance: none; width: 100%; height: 3px;
+      background: var(--dial-surface-active); border-radius: 2px; outline: none;
+    }
+    .dialkit-slider-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px; border-radius: 50%;
+      background: var(--dial-text-primary); cursor: pointer;
+    }
+    .dialkit-slider-row input[type="range"]::-moz-range-thumb {
+      width: 12px; height: 12px; border-radius: 50%; border: none;
+      background: var(--dial-text-primary); cursor: pointer;
+    }
+
     /* ── Photo frame modal ─────────────────────────────────── */
     #frame-overlay {
       position: fixed; inset: 0; z-index: 30;
@@ -167,6 +286,9 @@
       #cam-menu { bottom: 56px; right: 14px; }
       #rec-dot { bottom: 24px; right: 54px; }
 
+      #dial { top: 14px; right: 14px; }
+      #dial-panel { width: 200px; }
+
       #frame-actions { gap: 8px; }
       #frame-actions button { padding: 10px 20px; font-size: 9px; }
     }
@@ -208,6 +330,46 @@
 </div>
 
 <div id="rec-dot"></div>
+
+<div id="dial">
+  <button id="dial-toggle" title="Visuals">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round">
+      <line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2" fill="#fff" stroke="none"/>
+      <line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2" fill="#fff" stroke="none"/>
+      <line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2" fill="#fff" stroke="none"/>
+    </svg>
+  </button>
+  <div id="dial-panel">
+    <div class="dial-title">Visuals</div>
+
+    <div style="position:relative;">
+      <button class="dialkit-select-trigger" id="mode-trigger" data-open="false">
+        <span>Mode</span>
+        <span class="dialkit-select-right">
+          <span class="dialkit-select-value" id="mode-value">Particles</span>
+          <svg class="dialkit-select-chevron" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 7l5 5 5-5"/></svg>
+        </span>
+      </button>
+      <div class="dialkit-select-dropdown" id="mode-dropdown">
+        <button class="dialkit-select-option" data-value="particles" data-selected="true">Particles</button>
+        <button class="dialkit-select-option" data-value="risograph" data-selected="false">Risograph</button>
+        <button class="dialkit-select-option" data-value="transcript" data-selected="false">Transcript</button>
+        <button class="dialkit-select-option" data-value="ink" data-selected="false">Ink</button>
+        <button class="dialkit-select-option" data-value="bubble" data-selected="false">Bubble Chamber</button>
+      </div>
+    </div>
+
+    <div class="dialkit-toggle" id="cam-toggle" data-checked="false">
+      <span class="dialkit-toggle-label">Camera View</span>
+      <div class="dialkit-toggle-track"><div class="dialkit-toggle-thumb"></div></div>
+    </div>
+
+    <div class="dialkit-slider-row dial-row-hidden" id="cam-dim-row">
+      <div class="dialkit-slider-row-top"><span>Dim</span><span id="cam-dim-value">55%</span></div>
+      <input type="range" id="cam-dim-slider" min="0" max="100" value="55" />
+    </div>
+  </div>
+</div>
 
 <div id="frame-overlay">
   <div id="frame-scaler">
@@ -302,42 +464,36 @@ function getPitch() {
 const SIGS = [
   {                         // ① 60–180 Hz  deep / bass
     name: 'BASS',
-    pal:  ['#9933FF','#6600CC','#BB77FF','#7722DD'],
     shape: 'orb',            // large soft circle
     szBody: [1.2, 2.0],      // body dot size range
     szAccent: [4, 8],        // accent shape size
   },
   {                         // ② 180–300 Hz  low / baritone
     name: 'LOW',
-    pal:  ['#1177FF','#0055CC','#44AAFF','#0066EE'],
     shape: 'ring',           // circle outline + center dot
     szBody: [1.0, 1.8],
     szAccent: [4, 7],
   },
   {                         // ③ 300–450 Hz  mid-low / alto
     name: 'ALTO',
-    pal:  ['#00CC88','#009966','#33FF99','#00AA77'],
     shape: 'diamond',        // rotated square
     szBody: [1.0, 1.6],
     szAccent: [3, 7],
   },
   {                         // ④ 450–650 Hz  mid / mezzo-soprano
     name: 'MEZZO',
-    pal:  ['#FFBB00','#DD8800','#FFD700','#FFAA33'],
     shape: 'square',         // flat confetti rect
     szBody: [1.0, 1.6],
     szAccent: [3, 6],
   },
   {                         // ⑤ 650–900 Hz  high / soprano
     name: 'SOPRANO',
-    pal:  ['#FF1188','#CC0055','#FF77AA','#EE0077'],
     shape: 'cross',          // + cross
     szBody: [0.8, 1.4],
     szAccent: [3, 5],
   },
   {                         // ⑥ 900–1400 Hz  very high / falsetto
     name: 'FALSETTO',
-    pal:  ['#DFFFFF','#AAFFEE','#FFFFFF','#CCFFFF'],
     shape: 'spark',          // 4-arm sparkle
     szBody: [0.7, 1.2],
     szAccent: [2, 5],
@@ -352,7 +508,48 @@ function getSig(hz) {
   if (hz < 560)  return SIGS[4];   // SOPRANO  400–560 Hz
   return SIGS[5];                   // FALSETTO 560–1400 Hz
 }
-function rndColor(sig) { return sig.pal[Math.floor(Math.random() * sig.pal.length)]; }
+
+// ══════════════════════════════════════════════════════════════════════
+// CONTINUOUS PITCH COLOR — a smooth gradient across Hz, not discrete bands.
+// Anchors keep each signature's identity color at its band center, with
+// extra in-between stops (esp. Mezzo→Soprano: yellow, yellow-orange,
+// orange, pinkish-orange, pink) so color visibly shifts within any ~50Hz
+// window instead of jumping at band boundaries.
+// ══════════════════════════════════════════════════════════════════════
+const COLOR_STOPS = [
+  { hz: 60,   c: [0x77, 0x22, 0xDD] },  // deep violet
+  { hz: 100,  c: [0x99, 0x33, 0xFF] },  // BASS
+  { hz: 145,  c: [0x55, 0x44, 0xFF] },  // blue-violet
+  { hz: 165,  c: [0x11, 0x77, 0xFF] },  // LOW
+  { hz: 210,  c: [0x00, 0x99, 0xCC] },  // cyan-blue
+  { hz: 245,  c: [0x00, 0xCC, 0x88] },  // ALTO
+  { hz: 300,  c: [0x66, 0xCC, 0x44] },  // yellow-green
+  { hz: 345,  c: [0xFF, 0xBB, 0x00] },  // MEZZO — yellow
+  { hz: 380,  c: [0xFF, 0xA0, 0x20] },  // yellow-orange
+  { hz: 415,  c: [0xFF, 0x7A, 0x1A] },  // orange
+  { hz: 450,  c: [0xFF, 0x55, 0x66] },  // pinkish-orange
+  { hz: 480,  c: [0xFF, 0x11, 0x88] },  // SOPRANO — hot pink
+  { hz: 560,  c: [0xFF, 0x66, 0xCC] },  // light pink
+  { hz: 700,  c: [0xEF, 0xAA, 0xEE] },  // pale orchid
+  { hz: 900,  c: [0xDF, 0xFF, 0xFF] },  // FALSETTO — pale cyan-white
+  { hz: 1100, c: [0xEE, 0xFF, 0xFF] },
+  { hz: 1400, c: [0xFF, 0xFF, 0xFF] },  // white
+];
+
+function colorForHz(hz) {
+  const lo = COLOR_STOPS[0].hz, hi = COLOR_STOPS[COLOR_STOPS.length - 1].hz;
+  const h = Math.max(lo, Math.min(hi, hz));
+  let i = 0;
+  while (i < COLOR_STOPS.length - 2 && COLOR_STOPS[i + 1].hz < h) i++;
+  const a = COLOR_STOPS[i], b = COLOR_STOPS[i + 1];
+  const t = (h - a.hz) / (b.hz - a.hz);
+  const rgb = [0, 1, 2].map(k => Math.round(a.c[k] + (b.c[k] - a.c[k]) * t));
+  return '#' + rgb.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+// Small per-particle Hz jitter for visual variety, same role the old
+// multi-color palettes played, but sampled from the continuous gradient.
+function rndColor(hz) { return colorForHz(hz + (Math.random() - 0.5) * 40); }
 
 // ══════════════════════════════════════════════════════════════════════
 // PARTICLE POOLS
@@ -382,7 +579,7 @@ function spawnVoice(x, y, sig, sz, shape) {
   if (voicePool.length >= MAX_VOICE) return;
   voicePool.push({
     x, y, sz, shape, age: 0,
-    color: rndColor(sig),
+    color: rndColor(smoothPitch),
     rot: Math.random() * Math.PI * 2,
     rotSpd: (Math.random() - 0.5) * 0.05,
     vx: (Math.random() - 0.5) * 0.35,
@@ -394,71 +591,71 @@ function spawnVoice(x, y, sig, sz, shape) {
 // ══════════════════════════════════════════════════════════════════════
 // SHAPE RENDERER
 // ══════════════════════════════════════════════════════════════════════
-function drawShape(shape, x, y, sz, color, rot) {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(rot);
-  ctx.fillStyle   = color;
-  ctx.strokeStyle = color;
+function drawShape(g, shape, x, y, sz, color, rot) {
+  g.save();
+  g.translate(x, y);
+  g.rotate(rot);
+  g.fillStyle   = color;
+  g.strokeStyle = color;
 
   switch (shape) {
     case 'orb':
-      ctx.beginPath();
-      ctx.arc(0, 0, sz, 0, Math.PI * 2);
-      ctx.fill();
+      g.beginPath();
+      g.arc(0, 0, sz, 0, Math.PI * 2);
+      g.fill();
       break;
 
     case 'ring':
-      ctx.lineWidth = Math.max(0.6, sz * 0.22);
-      ctx.beginPath();
-      ctx.arc(0, 0, sz * 0.72, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(0, 0, sz * 0.18, 0, Math.PI * 2);
-      ctx.fill();
+      g.lineWidth = Math.max(0.6, sz * 0.22);
+      g.beginPath();
+      g.arc(0, 0, sz * 0.72, 0, Math.PI * 2);
+      g.stroke();
+      g.beginPath();
+      g.arc(0, 0, sz * 0.18, 0, Math.PI * 2);
+      g.fill();
       break;
 
     case 'diamond':
-      ctx.beginPath();
-      ctx.moveTo(0, -sz);
-      ctx.lineTo(sz * 0.58, 0);
-      ctx.lineTo(0,  sz);
-      ctx.lineTo(-sz * 0.58, 0);
-      ctx.closePath();
-      ctx.fill();
+      g.beginPath();
+      g.moveTo(0, -sz);
+      g.lineTo(sz * 0.58, 0);
+      g.lineTo(0,  sz);
+      g.lineTo(-sz * 0.58, 0);
+      g.closePath();
+      g.fill();
       break;
 
     case 'square':
-      ctx.fillRect(-sz * 0.85, -sz * 0.38, sz * 1.7, sz * 0.76);
+      g.fillRect(-sz * 0.85, -sz * 0.38, sz * 1.7, sz * 0.76);
       break;
 
     case 'cross': {
       const lw = Math.max(0.7, sz * 0.28);
-      ctx.lineWidth = lw;
-      ctx.lineCap   = 'round';
-      ctx.beginPath(); ctx.moveTo(-sz, 0); ctx.lineTo(sz, 0); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(0, -sz); ctx.lineTo(0, sz); ctx.stroke();
+      g.lineWidth = lw;
+      g.lineCap   = 'round';
+      g.beginPath(); g.moveTo(-sz, 0); g.lineTo(sz, 0); g.stroke();
+      g.beginPath(); g.moveTo(0, -sz); g.lineTo(0, sz); g.stroke();
       break;
     }
 
     case 'spark': {
-      ctx.lineWidth = Math.max(0.5, sz * 0.2);
-      ctx.lineCap   = 'round';
+      g.lineWidth = Math.max(0.5, sz * 0.2);
+      g.lineCap   = 'round';
       for (let i = 0; i < 4; i++) {
         const a = (i / 4) * Math.PI * 2;
-        ctx.beginPath();
-        ctx.moveTo(0, 0);
-        ctx.lineTo(Math.cos(a) * sz, Math.sin(a) * sz);
-        ctx.stroke();
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(Math.cos(a) * sz, Math.sin(a) * sz);
+        g.stroke();
       }
-      ctx.beginPath();
-      ctx.arc(0, 0, sz * 0.15, 0, Math.PI * 2);
-      ctx.fillStyle = '#fff';
-      ctx.fill();
+      g.beginPath();
+      g.arc(0, 0, sz * 0.15, 0, Math.PI * 2);
+      g.fillStyle = '#fff';
+      g.fill();
       break;
     }
   }
-  ctx.restore();
+  g.restore();
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -545,46 +742,64 @@ async function initCamera(videoEl) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-// RENDER LOOP
+// EFFECT LAYER — every visual mode draws onto this offscreen buffer; it
+// is composited with 'screen' blend over the background (solid black or
+// camera feed + dark overlay) each frame. Modes that want trailing
+// persistence (ink, bubble chamber) fade it slowly — or not at all — instead
+// of clearing it outright.
 // ══════════════════════════════════════════════════════════════════════
-let smoothVol = 0, smoothPitch = 260;
-let started  = false;
-let lastSigName = '';
+const fxCanvas = document.createElement('canvas');
+const fx = fxCanvas.getContext('2d');
+function resizeFx() { fxCanvas.width = W; fxCanvas.height = H; }
+resizeFx();
+window.addEventListener('resize', resizeFx);
 
-const elVol   = document.getElementById('h-vol');
-const elPitch = document.getElementById('h-pitch');
-const elSig   = document.getElementById('h-sig');
-const elPts   = document.getElementById('h-pts');
+let vizMode    = 'particles';   // 'particles' | 'risograph' | 'transcript' | 'ink' | 'bubble'
+let cameraOn   = false;
+let cameraDim  = 0.55;
 
-function frame() {
-  requestAnimationFrame(frame);
+const FADE_ALPHA = {
+  particles:  1,      // pool-managed lifecycle — full clear each frame
+  risograph:  1,      // shader redraws the full frame live — full clear each frame
+  transcript: 1,      // word-managed lifecycle — full clear each frame
+  ink:        0.004,  // smallest reliably-quantized alpha step (see FADE_SKIP_PROB)
+  bubble:     0.02,   // glowing trail persistence
+};
+// The canvas's 8-bit alpha precision quantizes very small per-frame fade
+// rates to a hard floor (~4.25s to fully dim, however small a rate is
+// requested), so total fade duration past that floor is instead tuned by
+// probabilistically skipping the fade on some frames.
+const FADE_SKIP_PROB = { ink: 0.15 };   // stretches ink's ~4.25s floor to ~5s
 
-  // Full clear each frame — clean silhouette, no smearing
-  ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, W, H);
+function drawCameraBackground(g) {
+  const vid = document.getElementById('cam');
+  if (vid.readyState >= 2 && vid.videoWidth) {
+    const vw = vid.videoWidth, vh = vid.videoHeight;
+    const s  = Math.max(W / vw, H / vh);
+    const sw = W / s, sh = H / s;
+    const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
+    g.save();
+    g.translate(W, 0);
+    g.scale(-1, 1);              // mirror to match selfie-mode segmentation coords
+    g.drawImage(vid, sx, sy, sw, sh, 0, 0, W, H);
+    g.restore();
+    g.fillStyle = `rgba(0,0,0,${cameraDim})`;
+    g.fillRect(0, 0, W, H);
+  } else {
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, W, H);
+  }
+}
 
-  if (!started) return;
-
-  // ── Audio read ──────────────────────────────────────────────────────
-  const rawVol   = getRMS();
-  const rawPitch = getPitch();
-  smoothVol   = smoothVol   * 0.80 + rawVol   * 0.20;
-  if (rawPitch > 0) smoothPitch = smoothPitch * 0.85 + rawPitch * 0.15;
-
-  const vol    = Math.min(1, Math.max(0, (smoothVol - 0.005) / 0.2));
-  const active = smoothVol > 0.018;
-  // Always use last known pitch so sig/color persists when silent
-  const sig = getSig(smoothPitch);
-
-  // ── Body silhouette — always on while camera sees a person ──────────
+// ── PARTICLES (default mode) ─────────────────────────────────────────
+function renderParticles(vol, active, sig) {
   if (bodyPixels.length > 0) {
     const bodyCount = 38 + Math.floor(vol * 22);
     for (const bp of sampleBody(bodyCount)) {
       const sz = sig.szBody[0] + Math.random() * (sig.szBody[1] - sig.szBody[0]);
-      spawnBody(bp.sx, bp.sy, rndColor(sig), sz);
+      spawnBody(bp.sx, bp.sy, rndColor(smoothPitch), sz);
     }
 
-    // Accent particles — trickle always, surge when singing
     const vCount = active ? Math.floor(4 + vol * 10) : 2;
     const src = sampleBody(vCount);
     for (let i = 0; i < vCount; i++) {
@@ -601,7 +816,6 @@ function frame() {
       spawnVoice(vx, vy, sig, sz, isAccent ? sig.shape : 'orb');
     }
   } else if (active) {
-    // No camera — fallback to random positions when singing
     const vCount = Math.floor(4 + vol * 10);
     for (let i = 0; i < vCount; i++) {
       const isAccent = Math.random() < 0.22;
@@ -612,7 +826,6 @@ function frame() {
     }
   }
 
-  // ── Update body particles (gentle random walk, strong drag) ─────────
   for (let i = bodyPool.length - 1; i >= 0; i--) {
     const p = bodyPool[i];
     p.vx += (Math.random() - 0.5) * 0.04;
@@ -623,7 +836,6 @@ function frame() {
     if (p.age > BODY_HOLD + BODY_FADE) { bodyPool.splice(i, 1); }
   }
 
-  // ── Update voice particles (minimal drift, no gravity) ──────────────
   for (let i = voicePool.length - 1; i >= 0; i--) {
     const p = voicePool[i];
     p.vx *= 0.95; p.vy *= 0.95;
@@ -633,42 +845,592 @@ function frame() {
     if (p.age > VOICE_HOLD + VOICE_FADE) { voicePool.splice(i, 1); }
   }
 
-  // ── Draw body particles (screen blend for natural glow) ─────────────
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
+  fx.save();
+  fx.globalCompositeOperation = 'screen';
   for (const p of bodyPool) {
     const a = p.age <= BODY_HOLD
       ? 0.80
       : 0.80 * (1 - (p.age - BODY_HOLD) / BODY_FADE);
     if (a <= 0) continue;
-    ctx.globalAlpha = a;
-    ctx.fillStyle   = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
-    ctx.fill();
+    fx.globalAlpha = a;
+    fx.fillStyle   = p.color;
+    fx.beginPath();
+    fx.arc(p.x, p.y, p.sz, 0, Math.PI * 2);
+    fx.fill();
   }
-  ctx.restore();
+  fx.restore();
 
-  // ── Draw voice accent particles ──────────────────────────────────────
-  ctx.save();
-  ctx.globalCompositeOperation = 'screen';
+  fx.save();
+  fx.globalCompositeOperation = 'screen';
   for (const p of voicePool) {
     const a = p.age <= VOICE_HOLD
       ? 0.90
       : 0.90 * (1 - (p.age - VOICE_HOLD) / VOICE_FADE);
     if (a <= 0) continue;
-    ctx.globalAlpha = a;
-    drawShape(p.shape, p.x, p.y, p.sz, p.color, p.rot);
+    fx.globalAlpha = a;
+    drawShape(fx, p.shape, p.x, p.y, p.sz, p.color, p.rot);
   }
+  fx.restore();
+}
+
+// ── RISOGRAPH ─────────────────────────────────────────────────────────
+// A real WebGL fragment shader, adapted from a p5.js hatching-sketch that
+// used ml5 BodyPix parts + faceMesh (neither available here). A sparse
+// canvas2d version of this was tried first but couldn't reproduce the
+// dense, continuous engraved-line texture the shader produces per pixel,
+// so this renders an actual WebGL pass instead: cross-hatch lines whose
+// density follows live video luminance, masked to the body silhouette
+// (reusing the same MediaPipe segmentation mask/canvas as the rest of the
+// app), in the current pitch-signature color on a transparent/black field
+// — no paper background — composited through the same fx + screen-blend
+// pipeline every other mode uses. There's no per-part (arm) segmentation
+// available, so unlike the reference this uses one ink color throughout,
+// modulated by singing instead of by body part.
+const glCanvas = document.createElement('canvas');
+function resizeGl() { glCanvas.width = W; glCanvas.height = H; }
+resizeGl();
+window.addEventListener('resize', resizeGl);
+const gl = glCanvas.getContext('webgl', { premultipliedAlpha: false });
+
+const RISO_VERT = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main() {
+  vUv = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`;
+
+const RISO_FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uVideo;
+uniform sampler2D uMask;
+uniform vec2 uVideoRes;
+uniform float uTime;
+uniform vec2 uHead;
+uniform float uEyeOk;
+uniform vec3 uInkColor;
+uniform float uActive;
+
+float luma(vec3 c){ return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+float hash12(vec2 p) {
+  vec3 p3 = fract(vec3(p.xyx) * .1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
+}
+
+float noise(vec2 p){
+  vec2 ip = floor(p);
+  vec2 u = fract(p);
+  u = u*u*(3.0-2.0*u);
+  float res = mix(
+    mix(hash12(ip), hash12(ip+vec2(1.0,0.0)), u.x),
+    mix(hash12(ip+vec2(0.0,1.0)), hash12(ip+vec2(1.0,1.0)), u.x), u.y);
+  return res*res;
+}
+
+vec3 getPixel(sampler2D tex, vec2 uv) {
+  // raw video isn't pre-mirrored — flip to match our mirrored uv space
+  return texture2D(tex, vec2(1.0 - uv.x, uv.y)).rgb;
+}
+float getMask(sampler2D tex, vec2 uv) {
+  // MediaPipe's mask is already selfie-mirrored, matching uv directly
+  return texture2D(tex, uv).r;
+}
+
+vec2 boil(vec2 uv, float strength) {
+  float t = floor(uTime * 12.0);
+  float dx = hash12(uv * 50.0 + t) - 0.5;
+  float dy = hash12(uv * 50.0 + t + 13.5) - 0.5;
+  return uv + vec2(dx, dy) * strength;
+}
+
+float hatch(vec2 uv, float density, float brightness, float angleOffset) {
+  vec2 p = uv;
+  p.x *= uVideoRes.x / uVideoRes.y;
+  float angle = 0.785 + angleOffset;
+  angle += sin(p.x * 2.0 + p.y * 3.0) * 0.2;
+  vec2 dir = vec2(cos(angle), sin(angle));
+  vec2 nDir = vec2(-dir.y, dir.x);
+  float v = dot(p, nDir);
+  float thick = 1.0 - brightness;
+  thick = smoothstep(0.2, 0.8, thick);
+  float lines = sin(v * density * 300.0);
+  float ink = smoothstep(1.0 - thick, 1.0 - thick + 0.1, lines);
+  float texture = noise(uv * 200.0);
+  ink *= smoothstep(0.2, 0.4, texture + 0.2);
+  return ink;
+}
+
+void main(){
+  vec2 uv = vUv;
+  vec2 sketchUV = boil(uv, 0.0015);
+
+  vec3 vid = getPixel(uVideo, sketchUV);
+  float b = luma(vid);
+
+  float maskNoise = noise(uv * 50.0 + uTime);
+  float pMask = smoothstep(0.3, 0.6, getMask(uMask, uv) + (maskNoise-0.5)*0.05);
+
+  float stroke1 = hatch(sketchUV, 1.0, b, 0.0);
+  float stroke2 = hatch(sketchUV, 0.8, b, 1.57);
+  float density = clamp(stroke1 + stroke2 * (0.4 + uActive * 0.4), 0.0, 1.0);
+
+  vec3 col = uInkColor * density * pMask;
+
+  if (uEyeOk > 0.5) {
+    vec2 asp = vec2(uVideoRes.x/uVideoRes.y, 1.0);
+    float d = length((uv - uHead) * asp);
+    float ring = abs(d - 0.09) - 0.004;
+    float scribble = noise(vec2(atan(uv.y-uHead.y, uv.x-uHead.x)*10.0, uTime*2.0));
+    float focus = smoothstep(0.01, 0.0, ring + scribble*0.01);
+    col = mix(col, vec3(1.0, 0.85, 0.2), focus * 0.9);
+  }
+
+  gl_FragColor = vec4(col, 1.0);
+}
+`;
+
+let risoProgram = null, risoUniforms = {}, risoBuffers = {};
+let risoVideoTex = null, risoMaskTex = null;
+let risoReady = false, risoInitTried = false;
+let risoStrokeCount = 0;
+const risoFallbackMaskCanvas = document.createElement('canvas');
+risoFallbackMaskCanvas.width = 320; risoFallbackMaskCanvas.height = 240;
+const risoFallbackMaskCtx = risoFallbackMaskCanvas.getContext('2d');
+
+function compileRisoShader(type, src) {
+  const sh = gl.createShader(type);
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    console.error('Risograph shader error:', gl.getShaderInfoLog(sh));
+    return null;
+  }
+  return sh;
+}
+
+function initRisoGl() {
+  if (!gl) return false;
+  // Canvas/video sources upload top-row-first, but WebGL samples textures
+  // bottom-up by convention — without this, everything renders upside down.
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  const vs = compileRisoShader(gl.VERTEX_SHADER, RISO_VERT);
+  const fs = compileRisoShader(gl.FRAGMENT_SHADER, RISO_FRAG);
+  if (!vs || !fs) return false;
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs);
+  gl.attachShader(prog, fs);
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+    console.error('Risograph program link error:', gl.getProgramInfoLog(prog));
+    return false;
+  }
+  risoProgram = prog;
+
+  const posBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, posBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+  risoBuffers.pos = posBuf;
+
+  risoUniforms = {
+    uVideo:    gl.getUniformLocation(prog, 'uVideo'),
+    uMask:     gl.getUniformLocation(prog, 'uMask'),
+    uVideoRes: gl.getUniformLocation(prog, 'uVideoRes'),
+    uTime:     gl.getUniformLocation(prog, 'uTime'),
+    uHead:     gl.getUniformLocation(prog, 'uHead'),
+    uEyeOk:    gl.getUniformLocation(prog, 'uEyeOk'),
+    uInkColor: gl.getUniformLocation(prog, 'uInkColor'),
+    uActive:   gl.getUniformLocation(prog, 'uActive'),
+  };
+
+  risoVideoTex = gl.createTexture();
+  risoMaskTex  = gl.createTexture();
+  [risoVideoTex, risoMaskTex].forEach(tex => {
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  });
+  return true;
+}
+
+function hexToRgb01(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+function renderRisograph(vol, active, sig) {
+  if (!risoInitTried) { risoInitTried = true; risoReady = initRisoGl(); }
+  if (!risoReady) return;   // WebGL unavailable on this device — skip quietly
+
+  gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.useProgram(risoProgram);
+
+  const vid = document.getElementById('cam');
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, risoVideoTex);
+  if (vid.readyState >= 2 && vid.videoWidth) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, vid);
+  }
+  gl.uniform1i(risoUniforms.uVideo, 0);
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, risoMaskTex);
+  if (bodyPixels.length > 0 && segCanvas.width && segCanvas.height) {
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, segCanvas);
+  } else if (active) {
+    // No camera — fallback to a soft pulsing oval so singing still shows something
+    risoFallbackMaskCtx.fillStyle = '#000';
+    risoFallbackMaskCtx.fillRect(0, 0, 320, 240);
+    risoFallbackMaskCtx.fillStyle = '#fff';
+    const r = 55 + vol * 45;
+    risoFallbackMaskCtx.beginPath();
+    risoFallbackMaskCtx.ellipse(160, 120, r, r * 1.3, 0, 0, Math.PI * 2);
+    risoFallbackMaskCtx.fill();
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, risoFallbackMaskCanvas);
+  }
+  gl.uniform1i(risoUniforms.uMask, 1);
+
+  gl.uniform2f(risoUniforms.uVideoRes, vid.videoWidth || 640, vid.videoHeight || 480);
+  gl.uniform1f(risoUniforms.uTime, performance.now() * 0.001);
+  gl.uniform1f(risoUniforms.uActive, active ? 1 : 0);
+
+  const hasMask = bodyPixels.length > 0 || active;
+  const head = estimateMouthPosition();
+  gl.uniform2f(risoUniforms.uHead, head.x / W, head.y / H);
+  gl.uniform1f(risoUniforms.uEyeOk, hasMask ? 1 : 0);
+
+  const inkRgb = hexToRgb01(colorForHz(smoothPitch));
+  gl.uniform3f(risoUniforms.uInkColor, inkRgb[0], inkRgb[1], inkRgb[2]);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, risoBuffers.pos);
+  const loc = gl.getAttribLocation(risoProgram, 'aPos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  fx.drawImage(glCanvas, 0, 0, W, H);
+  risoStrokeCount = hasMask ? 1 : 0;
+}
+
+// ── TRANSCRIPT (Web Speech API — English) ────────────────────────────
+let recognizer = null;
+let recognizerSupported = true;
+let transcriptWords = [];   // {text, x, y, vx, vy, color, age}
+const TRANSCRIPT_HOLD = 180, TRANSCRIPT_FADE = 90;
+let spokenWordCount = 0;    // words already spawned for the in-progress utterance
+
+function ensureRecognizer() {
+  if (recognizer) return recognizer;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { recognizerSupported = false; return null; }
+  const r = new SR();
+  r.continuous = true;
+  r.interimResults = true;
+  r.lang = 'en-US';
+  r.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const res = e.results[i];
+      const words = res[0].transcript.trim().split(/\s+/).filter(Boolean);
+      // Only spawn the newly recognized tail — interim results fire as each
+      // word is heard, so words appear the moment they're spoken rather than
+      // waiting for the whole phrase to finalize.
+      if (words.length > spokenWordCount) spawnTranscriptWords(words.slice(spokenWordCount));
+      spokenWordCount = res.isFinal ? 0 : words.length;
+    }
+  };
+  r.onerror = () => {};
+  r.onend = () => { if (vizMode === 'transcript' && started) { try { r.start(); } catch (e) {} } };
+  recognizer = r;
+  return r;
+}
+
+function startTranscriptMode() {
+  const r = ensureRecognizer();
+  spokenWordCount = 0;
+  if (r) { try { r.start(); } catch (e) {} }
+  document.fonts.load("700 20px 'Doto'");
+}
+function stopTranscriptMode() {
+  spokenWordCount = 0;
+  if (recognizer) { try { recognizer.stop(); } catch (e) {} }
+}
+
+// Rough mouth/chin estimate from the segmentation silhouette — no face
+// landmarks are tracked, so this uses the topmost band of body pixels
+// (typically the chin/neck in a chest-up framing) as a stand-in for "mouth".
+function estimateMouthPosition() {
+  if (!bodyPixels.length) return { x: W / 2, y: H / 2 };
+  let minY = Infinity;
+  for (const bp of bodyPixels) if (bp.sy < minY) minY = bp.sy;
+  const band = minY + 24;
+  let sx = 0, n = 0;
+  for (const bp of bodyPixels) { if (bp.sy <= band) { sx += bp.sx; n++; } }
+  return { x: n ? sx / n : W / 2, y: minY + 18 };
+}
+
+function spawnTranscriptWords(words) {
+  const sig = getSig(smoothPitch);
+  const mouth = estimateMouthPosition();
+  for (const word of words) {
+    transcriptWords.push({
+      text: word,
+      x: mouth.x + (Math.random() - 0.5) * 50,
+      y: mouth.y + (Math.random() - 0.5) * 14,
+      vx: (Math.random() - 0.5) * 0.3,
+      vy: -0.35 - Math.random() * 0.55,
+      color: rndColor(smoothPitch),
+      age: 0,
+    });
+  }
+  if (transcriptWords.length > 120) transcriptWords.splice(0, transcriptWords.length - 120);
+}
+
+function renderTranscript(vol, active, sig) {
+  if (!recognizerSupported) {
+    fx.save();
+    fx.fillStyle = 'rgba(255,255,255,0.5)';
+    fx.font = "16px 'Doto', monospace";
+    fx.textAlign = 'center';
+    fx.fillText('Speech recognition is not supported in this browser', W / 2, H / 2);
+    fx.restore();
+    return;
+  }
+
+  for (let i = transcriptWords.length - 1; i >= 0; i--) {
+    const w = transcriptWords[i];
+    w.x += w.vx; w.y += w.vy;
+    w.vx *= 0.99; w.vy *= 0.995;
+    w.age++;
+    if (w.age > TRANSCRIPT_HOLD + TRANSCRIPT_FADE) transcriptWords.splice(i, 1);
+  }
+
+  fx.save();
+  fx.globalCompositeOperation = 'screen';
+  fx.textAlign = 'center';
+  fx.font = "700 20px 'Doto', monospace";
+  for (const w of transcriptWords) {
+    const a = w.age <= TRANSCRIPT_HOLD ? 0.9 : 0.9 * (1 - (w.age - TRANSCRIPT_HOLD) / TRANSCRIPT_FADE);
+    if (a <= 0) continue;
+    fx.globalAlpha = a;
+    fx.fillStyle = w.color;
+    fx.fillText(w.text, w.x, w.y);
+  }
+  fx.restore();
+}
+
+// ── INK ───────────────────────────────────────────────────────────────
+// Inspired by a SamuelYAN generative sketch (a WebGL-shader-warped field
+// with a handful of wandering particles). The reference's Particle class
+// and GLSL shader weren't included, so this keeps the vanilla canvas2d
+// architecture used elsewhere: a small set of noise-driven wanderers orbit
+// the body centroid and leave soft glowing traces, colored by the live
+// pitch signature. FADE_ALPHA.ink is tuned so any trace dims and vanishes
+// roughly 2 seconds after it's drawn, instead of the reference's permanent
+// accumulation.
+let inkWanderers = null;
+const INK_COUNT = 8;
+
+function initInkWanderers() {
+  inkWanderers = [];
+  for (let i = 0; i < INK_COUNT; i++) {
+    inkWanderers.push({ seed: Math.random() * 1000, x: W / 2, y: H / 2 });
+  }
+}
+
+function renderInk(vol, active, sig) {
+  if (!inkWanderers) initInkWanderers();
+
+  let cx = W / 2, cy = H / 2;
+  if (bodyPixels.length) {
+    let sx = 0, sy = 0;
+    for (const bp of bodyPixels) { sx += bp.sx; sy += bp.sy; }
+    cx = sx / bodyPixels.length; cy = sy / bodyPixels.length;
+  }
+
+  const t = performance.now() * 0.0004;
+  fx.save();
+  fx.globalCompositeOperation = 'lighter';
+  for (const p of inkWanderers) {
+    const nx = smoothNoise(t * 2 + p.seed) * 2 - 1;
+    const ny = smoothNoise(t * 2 + p.seed + 91.7) * 2 - 1;
+    const reach = 60 + vol * 220;
+    p.x += (cx + nx * reach - p.x) * 0.06;
+    p.y += (cy + ny * reach * 0.8 - p.y) * 0.06;
+
+    const color = rndColor(smoothPitch);
+    const r = 10 + Math.random() * 14 * (0.4 + vol);
+    const grd = fx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
+    grd.addColorStop(0,   color + '55');
+    grd.addColorStop(0.6, color + '22');
+    grd.addColorStop(1,   color + '00');
+    fx.fillStyle = grd;
+    fx.beginPath();
+    fx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    fx.fill();
+  }
+  fx.restore();
+}
+
+// ── BUBBLE CHAMBER ────────────────────────────────────────────────────
+// Adapted from Samuel Yan's p5.js "Bubble Chamber" sketch into canvas2d —
+// glowing trails orbit the body centroid instead of a fixed point, driven
+// by live pitch/volume instead of pure randomness.
+let bubbleOrbiters = null;
+function hashNoise(n) { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); }
+function smoothNoise(t) {
+  const i = Math.floor(t), f = t - i;
+  const u = f * f * (3 - 2 * f);
+  return hashNoise(i) * (1 - u) + hashNoise(i + 1) * u;
+}
+
+function initBubbleOrbiters() {
+  bubbleOrbiters = [];
+  for (let i = 0; i < 12; i++) {
+    bubbleOrbiters.push({
+      seed: Math.random() * 1000,
+      angle: Math.random() * Math.PI * 2,
+      radius: 40 + Math.random() * 60,
+      px: null, py: null,
+    });
+  }
+}
+
+function renderBubbleChamber(vol, active, sig) {
+  if (!bubbleOrbiters) initBubbleOrbiters();
+
+  let cx = W / 2, cy = H / 2;
+  if (bodyPixels.length) {
+    let sx = 0, sy = 0;
+    for (const bp of bodyPixels) { sx += bp.sx; sy += bp.sy; }
+    cx = sx / bodyPixels.length; cy = sy / bodyPixels.length;
+  }
+
+  const t = performance.now() * 0.00035;
+  fx.save();
+  fx.lineCap = 'round';
+
+  for (const o of bubbleOrbiters) {
+    const n = smoothNoise(t * 3 + o.seed);
+    o.angle += 0.006 + n * 0.01 + vol * 0.02;
+    const targetR = 40 + n * 120 + vol * 140;
+    o.radius += (targetR - o.radius) * 0.03;
+
+    const x = cx + Math.cos(o.angle) * o.radius;
+    const y = cy + Math.sin(o.angle) * o.radius * 0.7;
+
+    if (o.px !== null) {
+      const color = rndColor(smoothPitch);
+      fx.globalCompositeOperation = 'lighter';
+      fx.strokeStyle = color;
+      fx.globalAlpha = 0.5;
+      fx.lineWidth = 0.8 + vol * 1.4;
+      fx.shadowColor = color;
+      fx.shadowBlur = 6;
+      fx.beginPath();
+      fx.moveTo(o.px, o.py);
+      fx.lineTo(x, y);
+      fx.stroke();
+
+      if (active && Math.random() < 0.03 + vol * 0.05) {
+        const rr = 18 + vol * 30;
+        const grd = fx.createRadialGradient(x, y, 0, x, y, rr);
+        grd.addColorStop(0, color + '55');
+        grd.addColorStop(1, color + '00');
+        fx.shadowBlur = 0;
+        fx.fillStyle = grd;
+        fx.beginPath();
+        fx.arc(x, y, rr, 0, Math.PI * 2);
+        fx.fill();
+      }
+    }
+    o.px = x; o.py = y;
+  }
+
+  fx.restore();
+}
+
+function pointCountFor(mode) {
+  switch (mode) {
+    case 'particles':  return bodyPool.length + voicePool.length;
+    case 'risograph':   return risoStrokeCount;
+    case 'transcript':  return transcriptWords.length;
+    case 'ink':          return inkWanderers ? inkWanderers.length : 0;
+    case 'bubble':      return bubbleOrbiters ? bubbleOrbiters.length : 0;
+    default: return 0;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// RENDER LOOP
+// ══════════════════════════════════════════════════════════════════════
+let smoothVol = 0, smoothPitch = 260;
+let started  = false;
+let lastSigName = '';
+
+const elVol   = document.getElementById('h-vol');
+const elPitch = document.getElementById('h-pitch');
+const elSig   = document.getElementById('h-sig');
+const elPts   = document.getElementById('h-pts');
+
+function frame() {
+  requestAnimationFrame(frame);
+
+  // ── Background — solid black, or the camera feed dimmed under an overlay
+  if (cameraOn && started) {
+    drawCameraBackground(ctx);
+  } else {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (!started) return;
+
+  // ── Audio read ──────────────────────────────────────────────────────
+  const rawVol   = getRMS();
+  const rawPitch = getPitch();
+  smoothVol   = smoothVol   * 0.80 + rawVol   * 0.20;
+  if (rawPitch > 0) smoothPitch = smoothPitch * 0.85 + rawPitch * 0.15;
+
+  const vol    = Math.min(1, Math.max(0, (smoothVol - 0.005) / 0.2));
+  const active = smoothVol > 0.018;
+  // Always use last known pitch so sig/color persists when silent
+  const sig = getSig(smoothPitch);
+
+  // ── Effect layer — fade or clear depending on mode, then draw content
+  const skipProb = FADE_SKIP_PROB[vizMode] || 0;
+  if (skipProb === 0 || Math.random() >= skipProb) {
+    fx.globalCompositeOperation = 'source-over';
+    fx.fillStyle = `rgba(0,0,0,${FADE_ALPHA[vizMode]})`;
+    fx.fillRect(0, 0, W, H);
+  }
+
+  switch (vizMode) {
+    case 'particles':  renderParticles(vol, active, sig); break;
+    case 'risograph':  renderRisograph(vol, active, sig); break;
+    case 'transcript': renderTranscript(vol, active, sig); break;
+    case 'ink':        renderInk(vol, active, sig); break;
+    case 'bubble':     renderBubbleChamber(vol, active, sig); break;
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+  ctx.drawImage(fxCanvas, 0, 0);
   ctx.restore();
 
   // ── HUD ──────────────────────────────────────────────────────────────
   elVol.textContent    = (smoothVol * 100).toFixed(1) + '%';
   elPitch.textContent  = smoothPitch.toFixed(0) + ' Hz';
-  elPitch.style.color  = sig.pal[0];
+  elPitch.style.color  = colorForHz(smoothPitch);
   elSig.textContent    = sig.name;
-  elSig.style.color    = sig.pal[0];
-  elPts.textContent    = (bodyPool.length + voicePool.length);
+  elSig.style.color    = colorForHz(smoothPitch);
+  elPts.textContent    = pointCountFor(vizMode);
 }
 requestAnimationFrame(frame);
 
@@ -685,6 +1447,7 @@ document.getElementById('btn').addEventListener('click', async () => {
   setTimeout(() => ov.style.display = 'none', 850);
   document.getElementById('hud-wrap').style.display = 'block';
   document.getElementById('cam-btn').style.display  = 'block';
+  document.getElementById('dial').style.display     = 'block';
 
   // Camera is non-blocking — silhouette activates once model loads
   initCamera(document.getElementById('cam')).catch(() => {
@@ -698,6 +1461,72 @@ document.getElementById('hud-toggle').addEventListener('click', () => {
   const btn = document.getElementById('hud-toggle');
   const collapsed = hud.classList.toggle('collapsed');
   btn.textContent = collapsed ? '▼' : '▲';
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// DIAL — visual-mode select + camera view controls
+// ══════════════════════════════════════════════════════════════════════
+const dialToggle   = document.getElementById('dial-toggle');
+const dialPanel    = document.getElementById('dial-panel');
+const modeTrigger  = document.getElementById('mode-trigger');
+const modeDropdown = document.getElementById('mode-dropdown');
+const modeValueEl  = document.getElementById('mode-value');
+const camToggleEl  = document.getElementById('cam-toggle');
+const camDimRow    = document.getElementById('cam-dim-row');
+const camDimSlider = document.getElementById('cam-dim-slider');
+const camDimValue  = document.getElementById('cam-dim-value');
+
+const MODE_LABELS = {
+  particles: 'Particles', risograph: 'Risograph', transcript: 'Transcript',
+  ink: 'Ink', bubble: 'Bubble Chamber',
+};
+
+function setVizMode(mode) {
+  if (mode === vizMode) return;
+  if (vizMode === 'transcript') stopTranscriptMode();
+  if (vizMode === 'ink') inkWanderers = null;   // reinit fresh wanderers next time
+  vizMode = mode;
+  if (vizMode === 'transcript') startTranscriptMode();
+  fx.fillStyle = '#000';
+  fx.fillRect(0, 0, W, H);
+}
+
+dialToggle.addEventListener('click', () => {
+  dialPanel.classList.toggle('open');
+});
+
+modeTrigger.addEventListener('click', () => {
+  const open = modeDropdown.classList.toggle('open');
+  modeTrigger.dataset.open = open ? 'true' : 'false';
+});
+
+document.querySelectorAll('#mode-dropdown .dialkit-select-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    setVizMode(opt.dataset.value);
+    document.querySelectorAll('#mode-dropdown .dialkit-select-option')
+      .forEach(o => { o.dataset.selected = (o === opt) ? 'true' : 'false'; });
+    modeValueEl.textContent = MODE_LABELS[opt.dataset.value];
+    modeDropdown.classList.remove('open');
+    modeTrigger.dataset.open = 'false';
+  });
+});
+
+document.addEventListener('click', (e) => {
+  if (!modeTrigger.contains(e.target) && !modeDropdown.contains(e.target)) {
+    modeDropdown.classList.remove('open');
+    modeTrigger.dataset.open = 'false';
+  }
+});
+
+camToggleEl.addEventListener('click', () => {
+  cameraOn = !cameraOn;
+  camToggleEl.dataset.checked = cameraOn ? 'true' : 'false';
+  camDimRow.classList.toggle('dial-row-hidden', !cameraOn);
+});
+
+camDimSlider.addEventListener('input', () => {
+  cameraDim = Number(camDimSlider.value) / 100;
+  camDimValue.textContent = camDimSlider.value + '%';
 });
 
 // ══════════════════════════════════════════════════════════════════════
