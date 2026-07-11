@@ -1102,8 +1102,13 @@ function renderRisograph(vol, active, sig) {
   gl.uniform1f(risoUniforms.uActive, active ? 1 : 0);
 
   const hasMask = bodyPixels.length > 0 || active;
-  const head = estimateMouthPosition();
-  gl.uniform2f(risoUniforms.uHead, head.x / W, head.y / H);
+  const headTop = estimateHeadTopPosition();
+  // Ring radius in the shader is 0.09 in normalized v-space — push the
+  // anchor up by more than that so the ring floats clear above the crown.
+  // uHead.y is in WebGL's v-space (0=bottom, 1=top), the opposite of our
+  // canvas-space headTop.y (0=top) — flip it, same as the mask/video fix.
+  const ringCanvasY = headTop.y - H * 0.13;
+  gl.uniform2f(risoUniforms.uHead, headTop.x / W, 1 - ringCanvasY / H);
   gl.uniform1f(risoUniforms.uEyeOk, hasMask ? 1 : 0);
 
   const inkRgb = hexToRgb01(colorForHz(smoothPitch));
@@ -1175,6 +1180,18 @@ function estimateMouthPosition() {
   return { x: n ? sx / n : W / 2, y: minY + 18 };
 }
 
+// Same idea, but anchored above the crown of the head instead of at the
+// chin — used to float a mark clear of the head rather than over the neck.
+function estimateHeadTopPosition() {
+  if (!bodyPixels.length) return { x: W / 2, y: H / 2 };
+  let minY = Infinity;
+  for (const bp of bodyPixels) if (bp.sy < minY) minY = bp.sy;
+  const band = minY + 24;
+  let sx = 0, n = 0;
+  for (const bp of bodyPixels) { if (bp.sy <= band) { sx += bp.sx; n++; } }
+  return { x: n ? sx / n : W / 2, y: minY };
+}
+
 function spawnTranscriptWords(words) {
   const sig = getSig(smoothPitch);
   const mouth = estimateMouthPosition();
@@ -1226,27 +1243,47 @@ function renderTranscript(vol, active, sig) {
 }
 
 // ── INK ───────────────────────────────────────────────────────────────
-// Inspired by a SamuelYAN generative sketch (a WebGL-shader-warped field
-// with a handful of wandering particles). The reference's Particle class
-// and GLSL shader weren't included, so this keeps the vanilla canvas2d
-// architecture used elsewhere: a small set of noise-driven wanderers orbit
-// the body centroid and leave soft glowing traces, colored by the live
-// pitch signature. FADE_ALPHA.ink is tuned so any trace dims and vanishes
-// roughly 2 seconds after it's drawn, instead of the reference's permanent
-// accumulation.
-let inkWanderers = null;
-const INK_COUNT = 8;
+// Adapted from a p5.js flow-field ink sketch: particles continuously spawn
+// from a point that wanders (via noise) around the body centroid, then
+// drift along a per-particle noise flow field, shrinking to nothing over
+// their lifespan. The reference's extra burst on mouse-press is singing
+// here instead, spawning from the estimated mouth position. Colored from
+// the live pitch signature, matching every other mode; FADE_ALPHA.ink
+// still governs the ~5s trace fade (the reference itself never cleared
+// its canvas — traces accumulated forever).
+let inkObjs = [];
+let inkNt = 0;
+const INK_NOISE_SCALE = 0.01;
+const MAX_INK = 3000;
 
-function initInkWanderers() {
-  inkWanderers = [];
-  for (let i = 0; i < INK_COUNT; i++) {
-    inkWanderers.push({ seed: Math.random() * 1000, x: W / 2, y: H / 2 });
-  }
+// noise2D reuses the 1D hash/value-noise from the bubble chamber mode,
+// bilinearly interpolated across a 2D lattice for a smooth flow field.
+function noise2D(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+  const h = (a, b) => hashNoise(a * 127.1 + b * 311.7);
+  const top = h(xi, yi) * (1 - u) + h(xi + 1, yi) * u;
+  const bot = h(xi, yi + 1) * (1 - u) + h(xi + 1, yi + 1) * u;
+  return top * (1 - v) + bot * v;
+}
+function inkFlowNoise(x, y, z) { return noise2D(x + z * 37, y + z * 53); }
+
+function spawnInkObj(x, y) {
+  if (inkObjs.length >= MAX_INK) return;
+  const lifeMax = 20 + Math.random() * 30;
+  inkObjs.push({
+    x, y,
+    t: Math.random() * INK_NOISE_SCALE,
+    lifeMax, life: lifeMax,
+    step: 0.1 + Math.random() * 0.4,
+    dMax: Math.random() >= 0.5 ? 10 : 30,
+    d: 0,
+    color: rndColor(smoothPitch),
+  });
 }
 
 function renderInk(vol, active, sig) {
-  if (!inkWanderers) initInkWanderers();
-
   let cx = W / 2, cy = H / 2;
   if (bodyPixels.length) {
     let sx = 0, sy = 0;
@@ -1254,28 +1291,40 @@ function renderInk(vol, active, sig) {
     cx = sx / bodyPixels.length; cy = sy / bodyPixels.length;
   }
 
-  const t = performance.now() * 0.0004;
-  fx.save();
-  fx.globalCompositeOperation = 'lighter';
-  for (const p of inkWanderers) {
-    const nx = smoothNoise(t * 2 + p.seed) * 2 - 1;
-    const ny = smoothNoise(t * 2 + p.seed + 91.7) * 2 - 1;
-    const reach = 60 + vol * 220;
-    p.x += (cx + nx * reach - p.x) * 0.06;
-    p.y += (cy + ny * reach * 0.8 - p.y) * 0.06;
+  // Ambient baseline — one particle a frame from a noise-driven point
+  // orbiting the body (or canvas center with no camera).
+  const maxR = Math.max(W, H) * 0.45;
+  const R = noise2D(inkNt * 0.01, 0) * maxR;
+  const theta = (noise2D(inkNt * 0.001, 1000) * 2 - 1) * 2 * Math.PI;
+  spawnInkObj(cx + R * Math.cos(theta), cy + R * Math.sin(theta));
 
-    const color = rndColor(smoothPitch);
-    const r = 10 + Math.random() * 14 * (0.4 + vol);
-    const grd = fx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r);
-    grd.addColorStop(0,   color + '55');
-    grd.addColorStop(0.6, color + '22');
-    grd.addColorStop(1,   color + '00');
-    fx.fillStyle = grd;
+  // Singing bursts, replacing the reference's mouse-press spawn.
+  if (active) {
+    const mouth = estimateMouthPosition();
+    const count = 1 + Math.floor(vol * 4);
+    for (let i = 0; i < count; i++) spawnInkObj(mouth.x, mouth.y);
+  }
+
+  fx.save();
+  fx.globalCompositeOperation = 'source-over';
+  for (let i = inkObjs.length - 1; i >= 0; i--) {
+    const o = inkObjs[i];
+    const flowTheta = (inkFlowNoise(o.x * INK_NOISE_SCALE, o.y * INK_NOISE_SCALE, o.t) * 2 - 1) * 2 * Math.PI;
+    o.x += Math.cos(flowTheta);
+    o.y += Math.sin(flowTheta);
+    o.life -= o.step;
+    if (o.life < 0) { inkObjs.splice(i, 1); continue; }
+    o.d = (o.life / o.lifeMax) * o.dMax;
+
+    fx.globalAlpha = 0.5;
+    fx.fillStyle = o.color;
     fx.beginPath();
-    fx.arc(p.x, p.y, r, 0, Math.PI * 2);
+    fx.arc(o.x, o.y, o.d / 2, 0, Math.PI * 2);
     fx.fill();
   }
   fx.restore();
+
+  inkNt++;
 }
 
 // ── BUBBLE CHAMBER ────────────────────────────────────────────────────
@@ -1361,7 +1410,7 @@ function pointCountFor(mode) {
     case 'particles':  return bodyPool.length + voicePool.length;
     case 'risograph':   return risoStrokeCount;
     case 'transcript':  return transcriptWords.length;
-    case 'ink':          return inkWanderers ? inkWanderers.length : 0;
+    case 'ink':          return inkObjs.length;
     case 'bubble':      return bubbleOrbiters ? bubbleOrbiters.length : 0;
     default: return 0;
   }
@@ -1484,7 +1533,7 @@ const MODE_LABELS = {
 function setVizMode(mode) {
   if (mode === vizMode) return;
   if (vizMode === 'transcript') stopTranscriptMode();
-  if (vizMode === 'ink') inkWanderers = null;   // reinit fresh wanderers next time
+  if (vizMode === 'ink') inkObjs = [];   // start a fresh drawing next time
   vizMode = mode;
   if (vizMode === 'transcript') startTranscriptMode();
   fx.fillStyle = '#000';
