@@ -103,6 +103,7 @@
       width: 10px; height: 10px; border-radius: 50%;
       background: #ff2244; display: none; z-index: 15;
       animation: recblink 0.9s infinite;
+      cursor: pointer;
     }
     @keyframes recblink { 50% { opacity: 0.25; } }
 
@@ -326,7 +327,7 @@
 
 <div id="cam-menu">
   <button id="shot-still">PHOTO</button>
-  <button id="shot-clip">3S CLIP</button>
+  <button id="shot-clip">RECORD</button>
 </div>
 
 <div id="rec-dot"></div>
@@ -410,11 +411,12 @@ window.addEventListener('resize', () => {
 // ══════════════════════════════════════════════════════════════════════
 // AUDIO ENGINE
 // ══════════════════════════════════════════════════════════════════════
-let audioCtx, analyser, timeBuf;
+let audioCtx, analyser, timeBuf, micStream;
 const FFT = 2048;
 
 async function initAudio() {
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  micStream = stream;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   const src = audioCtx.createMediaStreamSource(stream);
   analyser = audioCtx.createAnalyser();
@@ -1643,22 +1645,40 @@ document.getElementById('shot-still').addEventListener('click', () => {
   canvas.toBlob(blob => openFrame(blob, 'photo'), 'image/png');
 });
 
-// ── 3-second clip ────────────────────────────────────────────
-document.getElementById('shot-clip').addEventListener('click', () => {
-  camMenu.classList.remove('open');
-  const stream = canvas.captureStream(30);
+// ── Screen + voice recording (manual start/stop) ───────────────
+const clipBtn = document.getElementById('shot-clip');
+let mediaRecorder = null;
+let isRecording   = false;
+
+function startRecording() {
+  const videoStream  = canvas.captureStream(30);
+  const audioTracks  = micStream ? micStream.getAudioTracks() : [];
+  const combined     = new MediaStream([...videoStream.getVideoTracks(), ...audioTracks]);
   const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
-  const rec  = new MediaRecorder(stream, { mimeType: mime });
+  mediaRecorder = new MediaRecorder(combined, { mimeType: mime });
   const chunks = [];
-  rec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
-  rec.onstop = () => {
+  mediaRecorder.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mediaRecorder.onstop = () => {
+    isRecording = false;
     recDot.style.display = 'none';
+    clipBtn.textContent  = 'RECORD';
     openFrame(new Blob(chunks, { type: mime }), 'clip');
   };
+  isRecording = true;
   recDot.style.display = 'block';
-  rec.start();
-  setTimeout(() => rec.stop(), 3000);
+  clipBtn.textContent  = 'STOP';
+  mediaRecorder.start();
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === 'recording') mediaRecorder.stop();
+}
+
+clipBtn.addEventListener('click', () => {
+  camMenu.classList.remove('open');
+  if (isRecording) stopRecording(); else startRecording();
 });
+recDot.addEventListener('click', stopRecording);
 
 // ── Save ─────────────────────────────────────────────────────
 function download(url, filename) {
@@ -1719,8 +1739,11 @@ document.getElementById('frame-save').addEventListener('click', async () => {
     };
     img.src = URL.createObjectURL(capturedBlob);
   } else {
-    // Re-record the full postcard: draw video into frame canvas each tick
-    const stream = fc.captureStream(30);
+    // Re-record the full postcard: draw video into frame canvas each tick,
+    // carrying the original audio track along for the ride
+    const videoOnlyStream = fc.captureStream(30);
+    const audioTracks     = frameVid.captureStream ? frameVid.captureStream().getAudioTracks() : [];
+    const stream = new MediaStream([...videoOnlyStream.getVideoTracks(), ...audioTracks]);
     const mime = MediaRecorder.isTypeSupported('video/mp4') ? 'video/mp4' : 'video/webm';
     const rec  = new MediaRecorder(stream, { mimeType: mime });
     const chunks = [];
@@ -1735,11 +1758,11 @@ document.getElementById('frame-save').addEventListener('click', async () => {
       drawPostcard(f, frameVid, frameVid.videoWidth, frameVid.videoHeight);
       raf = requestAnimationFrame(tick);
     };
+    frameVid.onended = () => rec.stop();
     frameVid.currentTime = 0;
     frameVid.play();
     tick();
     rec.start();
-    setTimeout(() => rec.stop(), 3100);
   }
 });
 
