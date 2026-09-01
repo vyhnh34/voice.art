@@ -290,15 +290,16 @@
     #frame-actions { display: flex; gap: 10px; flex-shrink: 0; }
     #frame-actions button { padding: 9px 26px; font-size: 10px; }
 
-    /* ── QR share view — replaces the media inside the polaroid ─ */
+    /* ── QR share view — takes over the whole polaroid ─────────── */
     #frame-qr {
+      position: absolute; inset: 0;
       display: none; flex-direction: column; align-items: center; justify-content: center;
-      gap: 12px; background: #000;
+      gap: 20px; background: #000;
     }
-    #frame-qr-canvas { width: 150px; height: 150px; background: #fff; overflow: hidden; }
-    #frame-qr-canvas canvas, #frame-qr-canvas img { display: block; width: 150px !important; height: 150px !important; }
+    #frame-qr-canvas { width: 260px; height: 260px; background: #fff; overflow: hidden; }
+    #frame-qr-canvas canvas, #frame-qr-canvas img { display: block; width: 260px !important; height: 260px !important; }
     #frame-qr-caption {
-      font-family: 'Doto', monospace; font-size: 11px; letter-spacing: 1px;
+      font-family: 'Doto', monospace; font-size: 12px; letter-spacing: 1px;
       color: #C0C0C0; text-align: center; padding: 0 24px;
     }
 
@@ -410,7 +411,7 @@
       </div>
       <img class="media" id="frame-img" style="display:none" />
       <video class="media" id="frame-video" style="display:none" autoplay loop muted playsinline></video>
-      <div class="media" id="frame-qr" style="display:none">
+      <div id="frame-qr" style="display:none">
         <div id="frame-qr-canvas"></div>
         <div id="frame-qr-caption">Scan to download</div>
       </div>
@@ -1632,6 +1633,9 @@ const frameDate = document.getElementById('frame-date');
 const frameQr        = document.getElementById('frame-qr');
 const frameQrCanvas  = document.getElementById('frame-qr-canvas');
 const frameQrCaption = document.getElementById('frame-qr-caption');
+const frameTopRight  = document.querySelector('#frame .top-right');
+const frameActionsEl = document.getElementById('frame-actions');
+const frameDownloadBtn = document.getElementById('frame-download');
 
 let capturedBlob = null;   // Blob of the raw capture
 let capturedKind = null;   // 'photo' | 'clip'
@@ -1667,6 +1671,10 @@ function openFrame(blob, kind) {
   const url = URL.createObjectURL(blob);
   frameQr.style.display = 'none';
   frameQrCanvas.innerHTML = '';
+  frameCap.style.display = '';
+  frameTopRight.style.display = '';
+  frameActionsEl.style.display = '';
+  frameDownloadBtn.style.display = '';
   if (kind === 'photo') {
     frameImg.src = url;
     frameImg.style.display = 'block';
@@ -1863,14 +1871,18 @@ document.getElementById('frame-save').addEventListener('click', async () => {
   }
 });
 
-// ── QR share view — swaps into the polaroid's media area ─────
+// ── QR share view — takes over the whole polaroid ─────────────
 function showQRInFrame(link) {
   frameImg.style.display = 'none';
   frameVid.style.display = 'none';
+  frameCap.style.display = 'none';
+  frameTopRight.style.display = 'none';
+  frameActionsEl.style.display = 'none';
+  frameDownloadBtn.style.display = 'none';
   frameQrCanvas.innerHTML = '';
   new QRCode(frameQrCanvas, {
     text: link,
-    width: 150, height: 150,
+    width: 260, height: 260,
     colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M
   });
