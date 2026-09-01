@@ -22,11 +22,7 @@ module.exports = async function handler(req, res) {
   const name = `captures/${kind}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   try {
-    const blob = await put(name, buffer, {
-      access: 'public',
-      contentType,
-      storeId: process.env.BLOB_READ_WRITE_TOKEN_STORE_ID,
-    });
+    const blob = await put(name, buffer, { access: 'public', contentType });
     res.status(200).json({ url: blob.url });
   } catch (err) {
     console.error(err);
