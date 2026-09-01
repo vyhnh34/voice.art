@@ -22,10 +22,14 @@ module.exports = async function handler(req, res) {
   const name = `captures/${kind}-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   try {
-    const blob = await put(name, buffer, { access: 'public', contentType });
+    const blob = await put(name, buffer, {
+      access: 'public',
+      contentType,
+      storeId: process.env.BLOB_READ_WRITE_TOKEN_STORE_ID,
+    });
     res.status(200).json({ url: blob.url });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Upload failed', detail: err && err.message, hasToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
+    res.status(500).json({ error: 'Upload failed', detail: err && err.message });
   }
 };
