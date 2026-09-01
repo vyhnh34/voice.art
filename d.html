@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>yourvoice.art — download</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Doto:wght@400..900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #000; color: #fff; font-family: monospace;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px;
+    }
+    .card { width: 100%; max-width: 420px; text-align: center; }
+    h1 {
+      font-family: 'Doto', monospace; font-weight: 700; font-size: 14px;
+      letter-spacing: 3px; margin-bottom: 22px; color: #fff;
+    }
+    .preview {
+      width: 100%; max-height: 60vh; object-fit: contain;
+      background: #000; outline: 1px solid #fff; margin-bottom: 22px;
+      display: block;
+    }
+    button {
+      background: transparent; border: 1px solid rgba(255,255,255,0.3);
+      color: #fff; padding: 11px 36px; font-size: 11px; letter-spacing: 4px;
+      text-transform: uppercase; font-family: monospace; cursor: pointer; transition: all 0.2s;
+    }
+    button:hover { border-color: #fff; background: rgba(255,255,255,0.06); }
+    button:disabled { opacity: 0.4; cursor: default; }
+    #status {
+      font-size: 9px; letter-spacing: 1px; opacity: 0.5; margin-top: 16px;
+      text-transform: uppercase; min-height: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>yourvoice.art</h1>
+    <div id="preview-wrap"></div>
+    <button id="dl-btn">Download</button>
+    <div id="status"></div>
+  </div>
+
+<script>
+  const params  = new URLSearchParams(location.search);
+  const src     = params.get('u');
+  const name    = params.get('n') || 'yourvoice.png';
+  const isVideo = /\.(mp4|webm)$/i.test(name);
+  const statusEl = document.getElementById('status');
+  const dlBtn     = document.getElementById('dl-btn');
+
+  if (!src) {
+    statusEl.textContent = 'MISSING FILE LINK';
+    dlBtn.disabled = true;
+  } else {
+    const el = document.createElement(isVideo ? 'video' : 'img');
+    el.className = 'preview';
+    el.src = src;
+    if (isVideo) { el.controls = true; el.playsInline = true; el.muted = false; }
+    document.getElementById('preview-wrap').appendChild(el);
+  }
+
+  dlBtn.addEventListener('click', async () => {
+    if (!src) return;
+    dlBtn.disabled = true;
+    statusEl.textContent = 'PREPARING…';
+    try {
+      const res  = await fetch(src);
+      if (!res.ok) throw new Error('fetch failed');
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      statusEl.textContent = '';
+    } catch (err) {
+      statusEl.textContent = 'DOWNLOAD FAILED — TRY AGAIN';
+    } finally {
+      dlBtn.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
