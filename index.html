@@ -290,38 +290,16 @@
     #frame-actions { display: flex; gap: 10px; flex-shrink: 0; }
     #frame-actions button { padding: 9px 26px; font-size: 10px; }
 
-    /* ── QR share modal ────────────────────────────────────── */
-    #qr-overlay {
-      position: fixed; inset: 0; z-index: 31;
-      background: rgba(0,0,0,0.75);
-      display: none; align-items: center; justify-content: center;
-      padding: 20px; box-sizing: border-box;
+    /* ── QR share view — replaces the media inside the polaroid ─ */
+    #frame-qr {
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      gap: 12px; background: #000;
     }
-    #qr-overlay.open { display: flex; }
-    #qr-box {
-      position: relative;
-      width: 300px; max-width: 100%;
-      background: #000; outline: 1px solid #fff;
-      box-shadow: 0 8px 60px rgba(0,0,0,0.9);
-      padding: 32px 24px 26px; box-sizing: border-box;
-      display: flex; flex-direction: column; align-items: center; gap: 14px;
-    }
-    #qr-close {
-      position: absolute; top: -34px; right: 0;
-      background: none; border: none; padding: 4px 6px;
-      color: #fff; font-size: 15px; letter-spacing: 0;
-      opacity: 0.75; line-height: 1;
-    }
-    #qr-close:hover { opacity: 1; background: none; border: none; }
-    #qr-canvas { width: 200px; height: 200px; background: #fff; overflow: hidden; }
-    #qr-canvas canvas, #qr-canvas img { display: block; width: 200px !important; height: 200px !important; }
-    #qr-caption {
-      font-family: 'Doto', monospace; font-size: 12px; letter-spacing: 1px;
-      color: #C0C0C0; text-align: center;
-    }
-    #qr-link {
-      font-size: 9px; letter-spacing: 0.5px; color: rgba(255,255,255,0.35);
-      word-break: break-all; text-align: center;
+    #frame-qr-canvas { width: 150px; height: 150px; background: #fff; overflow: hidden; }
+    #frame-qr-canvas canvas, #frame-qr-canvas img { display: block; width: 150px !important; height: 150px !important; }
+    #frame-qr-caption {
+      font-family: 'Doto', monospace; font-size: 11px; letter-spacing: 1px;
+      color: #C0C0C0; text-align: center; padding: 0 24px;
     }
 
     /* ── Mobile / narrow viewport ──────────────────────────── */
@@ -342,9 +320,6 @@
 
       #frame-actions { gap: 8px; }
       #frame-actions button { padding: 10px 20px; font-size: 9px; }
-      #qr-box { width: 260px; padding: 28px 18px 20px; }
-      #qr-canvas { width: 170px; height: 170px; }
-      #qr-canvas canvas, #qr-canvas img { width: 170px !important; height: 170px !important; }
     }
 
     @media (max-width: 600px) and (orientation: landscape) {
@@ -435,6 +410,10 @@
       </div>
       <img class="media" id="frame-img" style="display:none" />
       <video class="media" id="frame-video" style="display:none" autoplay loop muted playsinline></video>
+      <div class="media" id="frame-qr" style="display:none">
+        <div id="frame-qr-canvas"></div>
+        <div id="frame-qr-caption">Scan to download</div>
+      </div>
     </div>
     <button id="frame-close" title="Close">✕</button>
     <button id="frame-download" title="Save to this device">
@@ -445,15 +424,6 @@
   </div>
   <div id="frame-actions">
     <button id="frame-save">SAVE PHOTO</button>
-  </div>
-</div>
-
-<div id="qr-overlay">
-  <div id="qr-box">
-    <button id="qr-close" title="Close">✕</button>
-    <div id="qr-canvas"></div>
-    <div id="qr-caption">Scan to download</div>
-    <div id="qr-link"></div>
   </div>
 </div>
 
@@ -1659,6 +1629,9 @@ const frameImg  = document.getElementById('frame-img');
 const frameVid  = document.getElementById('frame-video');
 const frameCap  = document.getElementById('frame-caption');
 const frameDate = document.getElementById('frame-date');
+const frameQr        = document.getElementById('frame-qr');
+const frameQrCanvas  = document.getElementById('frame-qr-canvas');
+const frameQrCaption = document.getElementById('frame-qr-caption');
 
 let capturedBlob = null;   // Blob of the raw capture
 let capturedKind = null;   // 'photo' | 'clip'
@@ -1692,6 +1665,8 @@ function openFrame(blob, kind) {
   capturedBlob = blob;
   capturedKind = kind;
   const url = URL.createObjectURL(blob);
+  frameQr.style.display = 'none';
+  frameQrCanvas.innerHTML = '';
   if (kind === 'photo') {
     frameImg.src = url;
     frameImg.style.display = 'block';
@@ -1878,7 +1853,7 @@ document.getElementById('frame-save').addEventListener('click', async () => {
     if (!res.ok) throw new Error(`Upload failed (${res.status})`);
     const { url } = await res.json();
     const shareUrl = `${location.origin}/d.html?u=${encodeURIComponent(url)}&n=${encodeURIComponent(filename)}`;
-    openQR(shareUrl);
+    showQRInFrame(shareUrl);
   } catch (err) {
     console.error(err);
     alert('Could not create a shareable link. Please try again.');
@@ -1888,34 +1863,28 @@ document.getElementById('frame-save').addEventListener('click', async () => {
   }
 });
 
-// ── QR share modal ──────────────────────────────────────────
-const qrOv      = document.getElementById('qr-overlay');
-const qrCanvas  = document.getElementById('qr-canvas');
-const qrCaption = document.getElementById('qr-caption');
-const qrLink    = document.getElementById('qr-link');
-
-function openQR(link) {
-  qrCanvas.innerHTML = '';
-  new QRCode(qrCanvas, {
+// ── QR share view — swaps into the polaroid's media area ─────
+function showQRInFrame(link) {
+  frameImg.style.display = 'none';
+  frameVid.style.display = 'none';
+  frameQrCanvas.innerHTML = '';
+  new QRCode(frameQrCanvas, {
     text: link,
-    width: 200, height: 200,
+    width: 150, height: 150,
     colorDark: '#000000', colorLight: '#ffffff',
     correctLevel: QRCode.CorrectLevel.M
   });
-  qrCaption.textContent = capturedKind === 'photo' ? 'Scan to download your photo' : 'Scan to download your recording';
-  qrLink.textContent = link;
-  qrOv.classList.add('open');
+  frameQrCaption.textContent = capturedKind === 'photo' ? 'Scan to download your photo' : 'Scan to download your recording';
+  frameQr.style.display = 'flex';
 }
-
-document.getElementById('qr-close').addEventListener('click', () => {
-  qrOv.classList.remove('open');
-});
 
 document.getElementById('frame-close').addEventListener('click', () => {
   frameOv.classList.remove('open');
   frameVid.pause();
   frameVid.src = '';
   frameImg.src = '';
+  frameQr.style.display = 'none';
+  frameQrCanvas.innerHTML = '';
   capturedBlob = null;
 });
 </script>
