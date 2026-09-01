@@ -26,6 +26,6 @@ module.exports = async function handler(req, res) {
     res.status(200).json({ url: blob.url });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Upload failed' });
+    res.status(500).json({ error: 'Upload failed', detail: err && err.message, hasToken: Boolean(process.env.BLOB_READ_WRITE_TOKEN) });
   }
 };
