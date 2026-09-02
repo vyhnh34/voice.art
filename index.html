@@ -1691,7 +1691,10 @@ function openFrame(blob, kind) {
   scaleFrame();
 }
 
-camBtn.addEventListener('click', () => camMenu.classList.toggle('open'));
+camBtn.addEventListener('click', () => {
+  if (isRecording) { stopRecording(); return; }
+  camMenu.classList.toggle('open');
+});
 
 // ── Still photo ──────────────────────────────────────────────
 document.getElementById('shot-still').addEventListener('click', () => {
